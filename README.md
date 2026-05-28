@@ -417,6 +417,8 @@ PyPI publisher settings.
   Formation calls used for live inventory and apply.
 - [`docs/faq.md`](docs/faq.md): answers for safety, AWS credentials, scope, and
   adoption questions.
+- [`docs/troubleshooting.md`](docs/troubleshooting.md): common install, AWS,
+  planning, and CI issues.
 - [`docs/github-actions.md`](docs/github-actions.md): a copy-paste drift check
   workflow using GitHub OIDC, job summaries, and uploaded report artifacts.
 - [`docs/aws-permissions.md`](docs/aws-permissions.md): suggested minimum IAM

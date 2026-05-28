@@ -26,6 +26,7 @@
 - Adds a safety model guide for conservative defaults and destructive changes.
 - Adds a positioning guide for how `lfguard` fits with infrastructure tools,
   raw boto3, and console workflows.
+- Adds a troubleshooting guide for common install, AWS, planning, and CI issues.
 - Adds a `sample` command for generating a runnable offline demo after install,
   including a local README with copy-paste commands.
 - Adds a state-format guide with examples for each supported resource kind.

@@ -56,6 +56,7 @@ class PackageMetadataTests(unittest.TestCase):
             "State Format",
             "AWS API Coverage",
             "FAQ",
+            "Troubleshooting",
             "Examples",
             "Changelog",
             "Security",
