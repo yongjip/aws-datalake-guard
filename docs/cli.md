@@ -39,6 +39,9 @@ State-aware commands use these options:
 - `--github-summary`: append a Markdown report to `$GITHUB_STEP_SUMMARY` where
   supported.
 
+See [`state-format.md`](state-format.md) for desired/current state examples for
+each supported Lake Formation resource kind.
+
 YAML files require the optional extra:
 
 ```bash

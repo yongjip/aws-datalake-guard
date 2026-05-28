@@ -26,3 +26,4 @@
 - Adds a safety model guide for conservative defaults and destructive changes.
 - Adds a `sample` command for generating a runnable offline demo after install,
   including a local README with copy-paste commands.
+- Adds a state-format guide with examples for each supported resource kind.

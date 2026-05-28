@@ -140,6 +140,8 @@ JSON and YAML use the same shape:
 
 Supported resource kinds are `catalog`, `database`, `table`,
 `table_with_columns`, `data_location`, and `lf_tag_policy`.
+See [`docs/state-format.md`](docs/state-format.md) for copyable examples of
+each resource kind and grant shape.
 
 ## CLI
 
@@ -405,6 +407,8 @@ PyPI publisher settings.
   shapes for audits, plans, applies, and CI artifacts.
 - [`docs/safety-model.md`](docs/safety-model.md): conservative defaults,
   destructive-change flags, apply behavior, and production patterns.
+- [`docs/state-format.md`](docs/state-format.md): desired/current state file
+  shape with examples for each supported resource kind.
 - [`docs/schema.json`](docs/schema.json): JSON Schema for desired/current state
   files.
 - [`docs/github-actions.md`](docs/github-actions.md): a copy-paste drift check
