@@ -4,8 +4,9 @@
 
 - Initial release of `lfguard`.
 - Adds the `lfguard` CLI with `init`, `schema`, `validate`, `audit`, `plan`,
-  `snapshot`, and conservative `apply` commands.
+  `doctor`, `snapshot`, and conservative `apply` commands.
 - Adds text, JSON, and Markdown output for reviewable audit and plan workflows.
+- Adds an offline install check for optional AWS and YAML integrations.
 - Ships a JSON Schema for desired/current state files.
 - Adds importable planning and audit APIs under `lakeformation_guard`.
 - Supports LF-Tag definitions, resource tag assignments, and Lake Formation grants.

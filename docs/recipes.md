@@ -5,6 +5,13 @@ conservative.
 
 ## Start a Policy File
 
+Confirm the installed CLI, Python runtime, optional extras, and AWS-related
+environment variables without making AWS calls:
+
+```bash
+lfguard doctor
+```
+
 Generate a starter desired-state policy, then replace the example principal,
 database, table, and tag values with your environment's names.
 

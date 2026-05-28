@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import argparse
+import os
+import platform
 import sys
+from importlib import metadata, util
 from pathlib import Path
 from typing import Any, Iterable, Optional, Sequence
 
@@ -27,6 +30,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             return _cmd_init(args)
         if args.command == "schema":
             return _cmd_schema(args)
+        if args.command == "doctor":
+            return _cmd_doctor(args)
         if args.command == "plan":
             return _cmd_plan(args)
         if args.command == "audit":
@@ -58,6 +63,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     schema_parser = subparsers.add_parser("schema", help="Emit the JSON Schema for desired/current state files.")
     schema_parser.add_argument("--output-file", help="Write schema JSON to this file instead of stdout.")
+
+    doctor_parser = subparsers.add_parser("doctor", help="Check local lfguard install and optional integrations.")
+    _add_output_arg(doctor_parser)
 
     audit_parser = subparsers.add_parser("audit", help="Report drift between desired and current Lake Formation state.")
     _add_state_args(audit_parser)
@@ -135,6 +143,15 @@ def _cmd_schema(args: argparse.Namespace) -> int:
             raise RuntimeError("Could not write schema to {}: {}".format(output_path, exc)) from exc
     else:
         print(text, end="")
+    return 0
+
+
+def _cmd_doctor(args: argparse.Namespace) -> int:
+    report = _doctor_report()
+    if args.output == "json":
+        print(dumps_json(report), end="")
+        return 0
+    _print_doctor(report)
     return 0
 
 
@@ -261,6 +278,70 @@ def _format_validation_summary(prefix: str, summary: dict) -> str:
         "{prefix}: {lf_tags} LF-Tag definition(s), "
         "{resource_tags} resource tag assignment(s), {grants} grant(s)."
     ).format(prefix=prefix, **summary)
+
+
+def _doctor_report() -> dict:
+    return {
+        "version": __version__,
+        "python": {
+            "version": platform.python_version(),
+            "executable": sys.executable,
+        },
+        "optional_dependencies": {
+            "boto3": _dependency_status(
+                "boto3",
+                "boto3",
+                extra="aws",
+                purpose="live AWS snapshot and apply workflows",
+            ),
+            "PyYAML": _dependency_status(
+                "yaml",
+                "PyYAML",
+                extra="yaml",
+                purpose="YAML desired/current state files",
+            ),
+        },
+        "aws_environment": {
+            "profile": os.environ.get("AWS_PROFILE"),
+            "region": os.environ.get("AWS_REGION") or os.environ.get("AWS_DEFAULT_REGION"),
+            "catalog_id": os.environ.get("LF_GUARD_CATALOG_ID"),
+        },
+        "aws_calls_made": False,
+    }
+
+
+def _dependency_status(module_name: str, distribution_name: str, *, extra: str, purpose: str) -> dict:
+    installed = util.find_spec(module_name) is not None
+    version = None
+    if installed:
+        try:
+            version = metadata.version(distribution_name)
+        except metadata.PackageNotFoundError:
+            version = None
+    return {
+        "installed": installed,
+        "version": version,
+        "extra": extra,
+        "purpose": purpose,
+    }
+
+
+def _print_doctor(report: dict) -> None:
+    print("lfguard: {}".format(report["version"]))
+    print("Python: {version} ({executable})".format(**report["python"]))
+    print("Optional dependencies:")
+    for name, status in report["optional_dependencies"].items():
+        if status["installed"]:
+            suffix = " {}".format(status["version"]) if status["version"] else ""
+            print("- {}: installed{} ({})".format(name, suffix, status["purpose"]))
+        else:
+            print("- {}: missing; install lfguard[{}] for {}".format(name, status["extra"], status["purpose"]))
+    print("AWS environment:")
+    aws_env = report["aws_environment"]
+    print("- profile: {}".format(aws_env["profile"] or "not set"))
+    print("- region: {}".format(aws_env["region"] or "not set"))
+    print("- catalog_id: {}".format(aws_env["catalog_id"] or "not set"))
+    print("No AWS calls were made.")
 
 
 def _starter_desired_state() -> dict:

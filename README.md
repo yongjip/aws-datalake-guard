@@ -32,8 +32,8 @@ values, are omitted unless the matching allow flag is set.
 - Conservative defaults that avoid accidental revokes and tag removals.
 - Works offline from snapshots, which makes CI drift checks possible.
 - Keeps the Python API dependency-light while isolating boto3 in the AWS adapter.
-- Produces JSON output suitable for pull request comments, release checks, and
-  platform automation.
+- Produces text, JSON, and Markdown output suitable for pull request comments,
+  release checks, and platform automation.
 
 ## Common use cases
 
@@ -65,6 +65,12 @@ python -m pip install "lfguard[yaml]"
 ```
 
 ## Quickstart
+
+Check the local install and optional extras without making AWS calls:
+
+```bash
+lfguard doctor
+```
 
 Try the included offline example with no AWS credentials:
 
@@ -139,6 +145,12 @@ Create a starter desired-state file:
 
 ```bash
 lfguard init --output-file policy/desired.json
+```
+
+Check whether optional AWS/YAML integrations are installed:
+
+```bash
+lfguard doctor --output json
 ```
 
 Export the JSON Schema for editor or CI validation:

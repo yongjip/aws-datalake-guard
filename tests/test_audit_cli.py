@@ -212,6 +212,29 @@ class AuditCliTests(unittest.TestCase):
         self.assertEqual(payload["title"], "lfguard state")
         self.assertIn("lfTagPolicyResource", payload["$defs"])
 
+    def test_cli_doctor_outputs_json_report(self):
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            exit_code = main(["doctor", "--output", "json"])
+
+        payload = json.loads(stdout.getvalue())
+        self.assertEqual(exit_code, 0)
+        self.assertIn("version", payload)
+        self.assertIn("python", payload)
+        self.assertEqual(payload["optional_dependencies"]["boto3"]["extra"], "aws")
+        self.assertEqual(payload["optional_dependencies"]["PyYAML"]["extra"], "yaml")
+        self.assertFalse(payload["aws_calls_made"])
+
+    def test_cli_doctor_outputs_text_report(self):
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            exit_code = main(["doctor"])
+
+        self.assertEqual(exit_code, 0)
+        self.assertIn("lfguard:", stdout.getvalue())
+        self.assertIn("Optional dependencies:", stdout.getvalue())
+        self.assertIn("No AWS calls were made.", stdout.getvalue())
+
     def test_cli_validate_outputs_json_summary(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
