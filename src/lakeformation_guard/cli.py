@@ -13,6 +13,7 @@ from .aws import AWSLakeFormationAdapter
 from .io import StateFormatError, dumps_json, load_current, load_desired
 from .models import CurrentState, DesiredState, GuardrailState
 from .planner import Plan, PlanOptions, plan
+from .schema import state_json_schema
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
@@ -24,6 +25,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     try:
         if args.command == "init":
             return _cmd_init(args)
+        if args.command == "schema":
+            return _cmd_schema(args)
         if args.command == "plan":
             return _cmd_plan(args)
         if args.command == "audit":
@@ -52,6 +55,9 @@ def build_parser() -> argparse.ArgumentParser:
     init_parser = subparsers.add_parser("init", help="Generate a starter desired-state policy file.")
     init_parser.add_argument("--output-file", help="Write starter policy JSON to this file instead of stdout.")
     init_parser.add_argument("--force", action="store_true", help="Overwrite the output file if it already exists.")
+
+    schema_parser = subparsers.add_parser("schema", help="Emit the JSON Schema for desired/current state files.")
+    schema_parser.add_argument("--output-file", help="Write schema JSON to this file instead of stdout.")
 
     audit_parser = subparsers.add_parser("audit", help="Report drift between desired and current Lake Formation state.")
     _add_state_args(audit_parser)
@@ -113,6 +119,20 @@ def _cmd_init(args: argparse.Namespace) -> int:
             output_path.write_text(text, encoding="utf-8")
         except OSError as exc:
             raise RuntimeError("Could not write starter policy to {}: {}".format(output_path, exc)) from exc
+    else:
+        print(text, end="")
+    return 0
+
+
+def _cmd_schema(args: argparse.Namespace) -> int:
+    text = dumps_json(state_json_schema())
+    if args.output_file:
+        output_path = Path(args.output_file)
+        try:
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(text, encoding="utf-8")
+        except OSError as exc:
+            raise RuntimeError("Could not write schema to {}: {}".format(output_path, exc)) from exc
     else:
         print(text, end="")
     return 0

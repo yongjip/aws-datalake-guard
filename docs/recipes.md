@@ -12,6 +12,15 @@ database, table, and tag values with your environment's names.
 lfguard init --output-file policy/desired.json
 ```
 
+## Use the JSON Schema
+
+Write the schema to your policy directory and point your editor or CI validator
+at it:
+
+```bash
+lfguard schema --output-file policy/lfguard.schema.json
+```
+
 ## Validate Policy Files
 
 Run this in pre-commit hooks or CI before comparing against AWS state:

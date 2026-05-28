@@ -141,6 +141,12 @@ Create a starter desired-state file:
 lfguard init --output-file policy/desired.json
 ```
 
+Export the JSON Schema for editor or CI validation:
+
+```bash
+lfguard schema --output-file policy/lfguard.schema.json
+```
+
 Validate policy files without AWS credentials:
 
 ```bash
@@ -261,6 +267,8 @@ PyPI publisher settings.
 
 - [`docs/recipes.md`](docs/recipes.md): audit-only, CI, and controlled apply
   workflows.
+- [`docs/schema.json`](docs/schema.json): JSON Schema for desired/current state
+  files.
 - [`docs/github-actions.md`](docs/github-actions.md): a copy-paste drift check
   workflow using GitHub OIDC.
 - [`docs/aws-permissions.md`](docs/aws-permissions.md): suggested minimum IAM

@@ -119,6 +119,17 @@ class AuditCliTests(unittest.TestCase):
             self.assertIn("already exists", stderr.getvalue())
             self.assertEqual(output_path.read_text(encoding="utf-8"), "{}")
 
+    def test_cli_schema_outputs_json_schema(self):
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            exit_code = main(["schema"])
+
+        payload = json.loads(stdout.getvalue())
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(payload["$schema"], "https://json-schema.org/draft/2020-12/schema")
+        self.assertEqual(payload["title"], "lfguard state")
+        self.assertIn("lfTagPolicyResource", payload["$defs"])
+
     def test_cli_validate_outputs_json_summary(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)

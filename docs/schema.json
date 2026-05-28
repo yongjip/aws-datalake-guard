@@ -1,0 +1,364 @@
+{
+  "$defs": {
+    "catalogResource": {
+      "additionalProperties": false,
+      "properties": {
+        "catalog_id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "kind": {
+          "const": "catalog"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    "dataLocationResource": {
+      "additionalProperties": false,
+      "properties": {
+        "catalog_id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "kind": {
+          "const": "data_location"
+        },
+        "location": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "location"
+      ],
+      "type": "object"
+    },
+    "databaseResource": {
+      "additionalProperties": false,
+      "properties": {
+        "catalog_id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "database": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "kind": {
+          "const": "database"
+        }
+      },
+      "required": [
+        "kind",
+        "database"
+      ],
+      "type": "object"
+    },
+    "grant": {
+      "additionalProperties": false,
+      "properties": {
+        "grantable_permissions": {
+          "oneOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array",
+              "uniqueItems": true
+            }
+          ]
+        },
+        "permissions": {
+          "oneOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array",
+              "uniqueItems": true
+            }
+          ]
+        },
+        "principal": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "resource": {
+          "$ref": "#/$defs/resource"
+        }
+      },
+      "required": [
+        "principal",
+        "resource",
+        "permissions"
+      ],
+      "type": "object"
+    },
+    "lfTagDefinition": {
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "values": {
+          "oneOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array",
+              "uniqueItems": true
+            }
+          ]
+        }
+      },
+      "required": [
+        "key",
+        "values"
+      ],
+      "type": "object"
+    },
+    "lfTagPolicyResource": {
+      "additionalProperties": false,
+      "properties": {
+        "expression": {
+          "oneOf": [
+            {
+              "additionalProperties": {
+                "oneOf": [
+                  {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  {
+                    "items": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "minItems": 1,
+                    "type": "array",
+                    "uniqueItems": true
+                  }
+                ]
+              },
+              "type": "object"
+            },
+            {
+              "items": {
+                "$ref": "#/$defs/lfTagDefinition"
+              },
+              "minItems": 1,
+              "type": "array"
+            }
+          ]
+        },
+        "kind": {
+          "const": "lf_tag_policy"
+        },
+        "resource_type": {
+          "enum": [
+            "DATABASE",
+            "TABLE"
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "resource_type",
+        "expression"
+      ],
+      "type": "object"
+    },
+    "resource": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/catalogResource"
+        },
+        {
+          "$ref": "#/$defs/databaseResource"
+        },
+        {
+          "$ref": "#/$defs/tableResource"
+        },
+        {
+          "$ref": "#/$defs/tableWithColumnsResource"
+        },
+        {
+          "$ref": "#/$defs/dataLocationResource"
+        },
+        {
+          "$ref": "#/$defs/lfTagPolicyResource"
+        }
+      ]
+    },
+    "resourceTagAssignment": {
+      "additionalProperties": false,
+      "properties": {
+        "resource": {
+          "$ref": "#/$defs/resource"
+        },
+        "tags": {
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "items": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "minItems": 1,
+                "type": "array",
+                "uniqueItems": true
+              }
+            ]
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "resource",
+        "tags"
+      ],
+      "type": "object"
+    },
+    "tableResource": {
+      "additionalProperties": false,
+      "properties": {
+        "catalog_id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "database": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "kind": {
+          "const": "table"
+        },
+        "table": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "database",
+        "table"
+      ],
+      "type": "object"
+    },
+    "tableWithColumnsResource": {
+      "additionalProperties": false,
+      "properties": {
+        "catalog_id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "columns": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "database": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "kind": {
+          "const": "table_with_columns"
+        },
+        "table": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "database",
+        "table",
+        "columns"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://raw.githubusercontent.com/yongjip/aws-datalake-guard/main/docs/schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Desired or current AWS Lake Formation LF-Tag guardrail state.",
+  "properties": {
+    "grants": {
+      "items": {
+        "$ref": "#/$defs/grant"
+      },
+      "type": "array"
+    },
+    "lf_tags": {
+      "description": "LF-Tag keys and allowed values.",
+      "oneOf": [
+        {
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "items": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "minItems": 1,
+                "type": "array",
+                "uniqueItems": true
+              }
+            ]
+          },
+          "type": "object"
+        },
+        {
+          "items": {
+            "$ref": "#/$defs/lfTagDefinition"
+          },
+          "type": "array"
+        }
+      ]
+    },
+    "resource_tags": {
+      "items": {
+        "$ref": "#/$defs/resourceTagAssignment"
+      },
+      "type": "array"
+    }
+  },
+  "title": "lfguard state",
+  "type": "object"
+}

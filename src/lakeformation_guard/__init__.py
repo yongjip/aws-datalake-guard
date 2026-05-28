@@ -13,6 +13,7 @@ from .models import (
     ResourceTagAssignment,
 )
 from .planner import Change, Plan, PlanOptions, plan
+from .schema import state_json_schema
 
 __all__ = [
     "AuditFinding",
@@ -30,4 +31,5 @@ __all__ = [
     "__version__",
     "audit",
     "plan",
+    "state_json_schema",
 ]
