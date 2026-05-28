@@ -3,6 +3,19 @@
 These workflows are intended to keep Lake Formation changes reviewable and
 conservative.
 
+## Validate Policy Files
+
+Run this in pre-commit hooks or CI before comparing against AWS state:
+
+```bash
+lfguard validate \
+  --desired policy/desired.json \
+  --current-snapshot snapshots/prod-current.json
+```
+
+The command does not call AWS. It parses the files, validates the supported
+resource shapes, normalizes permission names, and reports object counts.
+
 ## Audit in CI
 
 Store desired state in the repository and compare it with a current-state

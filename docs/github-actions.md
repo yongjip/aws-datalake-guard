@@ -34,6 +34,9 @@ jobs:
       - name: Install lfguard
         run: python -m pip install "lfguard[aws,yaml]"
 
+      - name: Validate desired policy
+        run: lfguard validate --desired policy/desired.yaml
+
       - name: Capture current state
         run: |
           lfguard snapshot \

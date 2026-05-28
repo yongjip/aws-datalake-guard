@@ -11,7 +11,7 @@ from ._version import __version__
 from .audit import AuditFinding, audit
 from .aws import AWSLakeFormationAdapter
 from .io import StateFormatError, dumps_json, load_current, load_desired
-from .models import CurrentState, DesiredState
+from .models import CurrentState, DesiredState, GuardrailState
 from .planner import Plan, PlanOptions, plan
 
 
@@ -26,6 +26,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             return _cmd_plan(args)
         if args.command == "audit":
             return _cmd_audit(args)
+        if args.command == "validate":
+            return _cmd_validate(args)
         if args.command == "snapshot":
             return _cmd_snapshot(args)
         if args.command == "apply":
@@ -50,6 +52,10 @@ def build_parser() -> argparse.ArgumentParser:
     _add_aws_args(audit_parser)
     _add_output_arg(audit_parser)
     audit_parser.add_argument("--fail-on-findings", action="store_true", help="Exit with status 1 when any finding is present.")
+
+    validate_parser = subparsers.add_parser("validate", help="Validate desired/current state files without AWS access.")
+    _add_state_args(validate_parser)
+    _add_output_arg(validate_parser)
 
     plan_parser = subparsers.add_parser("plan", help="Produce a conservative Lake Formation change plan.")
     _add_state_args(plan_parser)
@@ -87,6 +93,23 @@ def _cmd_plan(args: argparse.Namespace) -> int:
     current = _load_current(args, desired)
     change_plan = plan(desired, current, _plan_options(args))
     _print_plan(change_plan, args.output)
+    return 0
+
+
+def _cmd_validate(args: argparse.Namespace) -> int:
+    desired = load_desired(args.desired)
+    current = load_current(args.current_snapshot) if args.current_snapshot else None
+    desired_summary = _state_summary(desired)
+    current_summary = _state_summary(current) if current else None
+    if args.output == "json":
+        payload: Any = {"desired": {"valid": True, **desired_summary}}
+        if current_summary:
+            payload["current_snapshot"] = {"valid": True, **current_summary}
+        print(dumps_json(payload), end="")
+        return 0
+    print(_format_validation_summary("Desired state is valid", desired_summary))
+    if current_summary:
+        print(_format_validation_summary("Current snapshot is valid", current_summary))
     return 0
 
 
@@ -180,6 +203,21 @@ def _has_destructive_allowance(args: argparse.Namespace) -> bool:
         or args.allow_resource_tag_removals
         or args.allow_permission_revokes
     )
+
+
+def _state_summary(state: GuardrailState) -> dict:
+    return {
+        "lf_tags": len(state.lf_tags),
+        "resource_tags": len(state.resource_tags),
+        "grants": len(state.grants),
+    }
+
+
+def _format_validation_summary(prefix: str, summary: dict) -> str:
+    return (
+        "{prefix}: {lf_tags} LF-Tag definition(s), "
+        "{resource_tags} resource tag assignment(s), {grants} grant(s)."
+    ).format(prefix=prefix, **summary)
 
 
 def _print_plan(change_plan: Plan, output: str, *, prefix: Optional[str] = None) -> None:

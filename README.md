@@ -135,6 +135,14 @@ lfguard --version
 lfguard --help
 ```
 
+Validate policy files without AWS credentials:
+
+```bash
+lfguard validate \
+  --desired desired.json \
+  --current-snapshot current.json
+```
+
 Plan against an offline snapshot:
 
 ```bash

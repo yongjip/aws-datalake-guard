@@ -93,6 +93,58 @@ class AuditCliTests(unittest.TestCase):
                 ["lf_tag.create", "grant.add_permissions"],
             )
 
+    def test_cli_validate_outputs_json_summary(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            desired_path = tmp_path / "desired.json"
+            current_path = tmp_path / "current.json"
+            desired_path.write_text(
+                json.dumps(
+                    {
+                        "lf_tags": {"sensitivity": ["internal"]},
+                        "resource_tags": [
+                            {
+                                "resource": {"kind": "database", "database": "analytics"},
+                                "tags": {"sensitivity": ["internal"]},
+                            }
+                        ],
+                        "grants": [
+                            {
+                                "principal": "role",
+                                "resource": {"kind": "database", "database": "analytics"},
+                                "permissions": ["DESCRIBE"],
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            current_path.write_text(json.dumps({"lf_tags": {}, "resource_tags": [], "grants": []}), encoding="utf-8")
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                exit_code = main(
+                    [
+                        "validate",
+                        "--desired",
+                        str(desired_path),
+                        "--current-snapshot",
+                        str(current_path),
+                        "--output",
+                        "json",
+                    ]
+                )
+
+            payload = json.loads(stdout.getvalue())
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(
+                payload,
+                {
+                    "current_snapshot": {"grants": 0, "lf_tags": 0, "resource_tags": 0, "valid": True},
+                    "desired": {"grants": 1, "lf_tags": 1, "resource_tags": 1, "valid": True},
+                },
+            )
+
     def test_cli_version_outputs_short_command_name(self):
         stdout = io.StringIO()
         with self.assertRaises(SystemExit) as raised:
