@@ -127,6 +127,8 @@ With an explicit catalog:
 LF-Tag policy resources are used for grants. `resource_type` must be `DATABASE`
 or `TABLE`. Multiple values for one key are OR, multiple keys are AND, and `*`
 means all values for a key in an LF-Tag policy grant.
+See [`tag-permission-matrix.md`](tag-permission-matrix.md) for inheritance and
+permission examples.
 
 ```json
 {

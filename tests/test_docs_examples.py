@@ -124,6 +124,29 @@ class DocumentationExampleTests(unittest.TestCase):
             self.assertIn(expected, guide_text)
         self.assertIn("docs/lake-formation-guide.md", readme_text)
 
+    def test_tag_permission_matrix_covers_effective_tag_and_permission_cases(self):
+        root = Path(__file__).resolve().parents[1]
+        matrix_text = (root / "docs" / "tag-permission-matrix.md").read_text(encoding="utf-8")
+        readme_text = (root / "README.md").read_text(encoding="utf-8")
+
+        for expected in (
+            "Effective Tag Values",
+            "Expression Matching",
+            "Table and Column Scenarios",
+            "Permission Matrix",
+            "Grant Option",
+            "`k=a` | `k=b` | `k=c`",
+            "`domain=sales|finance AND sensitivity=internal`",
+            "Table has `sensitivity=internal`; column `email` has `sensitivity=restricted`.",
+            "LF-Tag values",
+            "Data filters / cell filters",
+            "https://docs.aws.amazon.com/lake-formation/latest/dg/lf-permissions-reference.html",
+            "https://docs.aws.amazon.com/lake-formation/latest/dg/TBAC-assigning-tags.html",
+            "https://docs.aws.amazon.com/lake-formation/latest/dg/TBAC-granting-tags.html",
+        ):
+            self.assertIn(expected, matrix_text)
+        self.assertIn("docs/tag-permission-matrix.md", readme_text)
+
 
 def _is_external_link(target: str) -> bool:
     return target.startswith(("http://", "https://", "mailto:"))

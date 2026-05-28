@@ -311,6 +311,8 @@ PyPI publisher settings. The first release notes are in
 - [`docs/lake-formation-guide.md`](docs/lake-formation-guide.md): Lake
   Formation mental model, LF-Tag best practices, hybrid access notes, and
   antipatterns.
+- [`docs/tag-permission-matrix.md`](docs/tag-permission-matrix.md): effective
+  LF-Tag inheritance, expression matching, and permission combinations.
 - [`docs/report-formats.md`](docs/report-formats.md): JSON and Markdown report
   shapes for audits, plans, applies, and CI artifacts.
 - [`docs/architecture.md`](docs/architecture.md): package boundaries, data

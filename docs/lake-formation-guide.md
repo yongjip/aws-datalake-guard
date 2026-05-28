@@ -73,6 +73,9 @@ Deleting LF-Tag values or whole LF-Tags is dangerous. AWS does not first check
 whether the value or tag is still attached to Data Catalog resources. If the
 deleted tag or value was driving a grant, the matching permissions disappear.
 
+For the full tag and permission matrix, including column override examples and
+permission combinations, see [`tag-permission-matrix.md`](tag-permission-matrix.md).
+
 ## Best Practices
 
 - Keep IAM administration and Lake Formation policy review separate.

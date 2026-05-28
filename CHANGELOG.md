@@ -53,6 +53,8 @@
 - Adds lint coverage and docs for AWS LF-Tag behavior: lower-case storage,
   one resource value per key, expression AND/OR semantics, and `*` value
   wildcards in LF-Tag policy grants.
+- Adds a tag and permission matrix for LF-Tag inheritance, column overrides,
+  expression matching, permission shapes, and `lfguard` support boundaries.
 - Adds a positioning guide for how `lfguard` fits with infrastructure tools,
   raw boto3, and console workflows.
 - Calls out README scope limits early so new users can evaluate fit quickly.

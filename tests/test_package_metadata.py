@@ -63,6 +63,7 @@ class PackageMetadataTests(unittest.TestCase):
             "Roadmap",
             "Safety Model",
             "Lake Formation Guide",
+            "Tag and Permission Matrix",
             "Positioning",
             "State Format",
             "AWS API Coverage",
