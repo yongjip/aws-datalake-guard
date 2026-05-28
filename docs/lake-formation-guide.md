@@ -73,8 +73,9 @@ Deleting LF-Tag values or whole LF-Tags is dangerous. AWS does not first check
 whether the value or tag is still attached to Data Catalog resources. If the
 deleted tag or value was driving a grant, the matching permissions disappear.
 
-For the full tag and permission matrix, including column override examples and
-permission combinations, see [`tag-permission-matrix.md`](tag-permission-matrix.md).
+For the full tag and permission matrix, including column override examples,
+named versus LF-TBAC grant behavior, and permission/resource combinations, see
+[`tag-permission-matrix.md`](tag-permission-matrix.md).
 
 ## Best Practices
 
@@ -83,6 +84,12 @@ permission combinations, see [`tag-permission-matrix.md`](tag-permission-matrix.
 - Use a separate additive apply role for creating LF-Tags, adding tag values,
   assigning tags, and granting permissions.
 - Keep revokes and removals in a separate destructive maintenance workflow.
+- Prefer LF-Tag policy grants for databases and tables. Keep named grants as
+  documented exceptions.
+- Avoid `ALL` or `SUPER`; grant the smallest Lake Formation permission set that
+  supports the workload.
+- Keep grant option rare. Delegation changes the access-control owner and should
+  be reviewed separately.
 - Use stable, low-cardinality tag keys such as domain, classification,
   environment, and owner.
 - Review `IAMAllowedPrincipals` before claiming Lake Formation is the source of
@@ -99,6 +106,12 @@ permission combinations, see [`tag-permission-matrix.md`](tag-permission-matrix.
 - Treating Lake Formation grants as enough when the principal still lacks IAM
   API permissions.
 - Leaving broad `IAMAllowedPrincipals` or `ALLIAMPrincipals` grants unreviewed.
+- Granting `ALL` or `SUPER` instead of explicit permissions.
+- Letting routine read workflows include `ALTER`, `CREATE_TABLE`, `DELETE`,
+  `DROP`, or `INSERT`.
+- Using grant option as a convenience instead of an explicit delegation review.
+- Relying on named database/table grants as the normal pattern when LF-Tag
+  policy grants would express the access rule.
 - Using LF-Tags as free-form labels, ticket numbers, or table-specific aliases.
 - Writing mixed-case LF-Tags and assuming AWS will preserve the case.
 - Assigning multiple values for the same LF-Tag key to one resource.
@@ -127,6 +140,11 @@ Start with the smallest workflow that answers today's question:
 - Use `lfguard plan` when you need to review the exact changes before apply.
 - Use `lfguard bootstrap --output-dir lfguard-policy` when you want a minimal
   starter repository.
+
+`lfguard check --fail-on-findings` is intentionally strict. It can block broad
+principals, `ALL`/`SUPER`, mixed-case LF-Tags, multi-value resource tags,
+grant-option delegation, wildcard LF-Tag policies, mutating permissions, and
+named database/table grants that should be reviewed as exceptions.
 
 Add optional bootstrap scaffolds only when they have an owner:
 

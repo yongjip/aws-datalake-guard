@@ -1435,13 +1435,59 @@ class AuditCliTests(unittest.TestCase):
                             "resource_type": "DATABASE",
                             "expression": {"module": ["*"]},
                         },
-                        "permissions": ["CREATE_TABLE"],
+                        "permissions": ["DESCRIBE"],
                     }
                 ],
             }
         )
 
-        self.assertEqual(lint_desired(desired), ())
+        findings = lint_desired(desired)
+
+        self.assertEqual([finding.code for finding in findings], ["LF_TAG_POLICY_WILDCARD_VALUE"])
+        self.assertEqual(findings[0].severity, "warning")
+
+    def test_lint_desired_api_reports_governance_antipatterns(self):
+        desired = DesiredState.from_dict(
+            {
+                "lf_tags": {"domain": ["sales"]},
+                "resource_tags": [],
+                "grants": [
+                    {
+                        "principal": "IAMAllowedPrincipals",
+                        "resource": {
+                            "kind": "lf_tag_policy",
+                            "resource_type": "TABLE",
+                            "expression": {"domain": ["sales"]},
+                        },
+                        "permissions": ["SELECT"],
+                    },
+                    {
+                        "principal": "arn:aws:iam::111122223333:role/DataAdmin",
+                        "resource": {"kind": "database", "database": "analytics"},
+                        "permissions": ["CREATE_TABLE"],
+                        "grantable_permissions": ["CREATE_TABLE"],
+                    },
+                    {
+                        "principal": "arn:aws:iam::111122223333:role/Owner",
+                        "resource": {"kind": "table", "database": "analytics", "table": "orders"},
+                        "permissions": ["ALL"],
+                    },
+                ],
+            }
+        )
+
+        findings = lint_desired(desired)
+        codes = [finding.code for finding in findings]
+
+        self.assertIn("BROAD_PRINCIPAL_GRANT", codes)
+        self.assertIn("MUTATING_PERMISSION_REVIEW", codes)
+        self.assertIn("GRANTABLE_PERMISSION_REVIEW", codes)
+        self.assertIn("NAMED_RESOURCE_GRANT_REVIEW", codes)
+        self.assertIn("BROAD_PERMISSION_GRANT", codes)
+        self.assertEqual(
+            {finding.code for finding in findings if finding.severity == "error"},
+            {"BROAD_PRINCIPAL_GRANT", "BROAD_PERMISSION_GRANT"},
+        )
 
     def test_cli_lint_outputs_json_and_can_fail_on_findings(self):
         with tempfile.TemporaryDirectory() as tmp:

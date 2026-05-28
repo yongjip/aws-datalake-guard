@@ -60,6 +60,11 @@ schema export, install diagnostics, IAM policy starters, and report formatting.
 Those helpers are optional. The core value is still check, audit, plan, and
 conservative apply.
 
+`lfguard check --fail-on-findings` is deliberately rigid: it blocks undefined
+tags, mixed-case LF-Tags, multiple values for one key on a resource, broad
+principals, `ALL`/`SUPER`, and other patterns that make a lake harder to govern
+like a controlled database.
+
 ## Common use cases
 
 - Fail a CI check when production Lake Formation state drifts from a reviewed
@@ -312,7 +317,8 @@ PyPI publisher settings. The first release notes are in
   Formation mental model, LF-Tag best practices, hybrid access notes, and
   antipatterns.
 - [`docs/tag-permission-matrix.md`](docs/tag-permission-matrix.md): effective
-  LF-Tag inheritance, expression matching, and permission combinations.
+  LF-Tag inheritance, expression matching, grant shapes, column override cases,
+  and permission/resource combinations.
 - [`docs/report-formats.md`](docs/report-formats.md): JSON and Markdown report
   shapes for audits, plans, applies, and CI artifacts.
 - [`docs/architecture.md`](docs/architecture.md): package boundaries, data

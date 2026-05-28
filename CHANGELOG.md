@@ -54,7 +54,11 @@
   one resource value per key, expression AND/OR semantics, and `*` value
   wildcards in LF-Tag policy grants.
 - Adds a tag and permission matrix for LF-Tag inheritance, column overrides,
-  expression matching, permission shapes, and `lfguard` support boundaries.
+  grant shape interactions, expression matching, permission behavior, and
+  `lfguard` support boundaries.
+- Adds opinionated governance lint for broad principals, `ALL`/`SUPER`,
+  mutating permissions, grant option, wildcard LF-Tag policies, and named
+  database/table grant exceptions.
 - Adds a positioning guide for how `lfguard` fits with infrastructure tools,
   raw boto3, and console workflows.
 - Calls out README scope limits early so new users can evaluate fit quickly.

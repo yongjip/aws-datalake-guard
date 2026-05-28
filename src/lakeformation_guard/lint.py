@@ -8,6 +8,12 @@ from typing import Any, Dict, List, Mapping, Tuple
 from .models import DesiredState, Grant, ResourceTagAssignment
 
 
+BROAD_PRINCIPALS = {"alliamprincipals", "iamallowedprincipals", "iam_allowed_principals"}
+BROAD_PERMISSIONS = {"ALL", "SUPER"}
+MUTATING_PERMISSIONS = {"ALTER", "CREATE_TABLE", "DELETE", "DROP", "INSERT"}
+NAMED_GRANT_RESOURCE_KINDS = {"database", "table", "table_with_columns"}
+
+
 @dataclass(frozen=True)
 class LintFinding:
     """A desired-policy issue that can be detected without AWS access."""
@@ -70,7 +76,7 @@ def _lint_lf_tag_definitions(tag_values: Mapping[str, set]) -> List[LintFinding]
             findings.append(
                 LintFinding(
                     code="LF_TAG_CASE_NORMALIZATION",
-                    severity="warning",
+                    severity="error",
                     target="lf_tag:{}".format(tag_key),
                     message="AWS Lake Formation stores LF-Tag keys and values in lower case",
                     details={"values": case_sensitive_values},
@@ -117,7 +123,7 @@ def _lint_resource_tag_assignment(
             findings.append(
                 LintFinding(
                     code="LF_TAG_CASE_NORMALIZATION",
-                    severity="warning",
+                    severity="error",
                     target=assignment.resource.identity,
                     message="AWS Lake Formation stores LF-Tag keys and values in lower case",
                     details={
@@ -160,10 +166,10 @@ def _lint_resource_tag_assignment(
 
 
 def _lint_grant(grant: Grant, tag_values: Mapping[str, set]) -> List[LintFinding]:
+    findings = _lint_grant_governance(grant)
     if grant.resource.kind != "lf_tag_policy":
-        return []
+        return findings
 
-    findings: List[LintFinding] = []
     if len(grant.resource.expression) > 50:
         findings.append(
             LintFinding(
@@ -199,13 +205,28 @@ def _lint_grant(grant: Grant, tag_values: Mapping[str, set]) -> List[LintFinding
             findings.append(
                 LintFinding(
                     code="LF_TAG_CASE_NORMALIZATION",
-                    severity="warning",
+                    severity="error",
                     target=_grant_target(grant),
                     message="AWS Lake Formation stores LF-Tag keys and values in lower case",
                     details={
                         "principal": grant.principal,
                         "resource": grant.resource.to_dict(),
                         "values": case_sensitive_values,
+                    },
+                )
+            )
+        wildcard_values = sorted(value for value in expression_item.values if value == "*")
+        if wildcard_values:
+            findings.append(
+                LintFinding(
+                    code="LF_TAG_POLICY_WILDCARD_VALUE",
+                    severity="warning",
+                    target=_grant_target(grant),
+                    message="LF-Tag policy uses * and grants access to all values for a key",
+                    details={
+                        "principal": grant.principal,
+                        "resource": grant.resource.to_dict(),
+                        "tag_key": expression_item.key,
                     },
                 )
             )
@@ -246,8 +267,95 @@ def _lint_grant(grant: Grant, tag_values: Mapping[str, set]) -> List[LintFinding
     return findings
 
 
+def _lint_grant_governance(grant: Grant) -> List[LintFinding]:
+    findings: List[LintFinding] = []
+    target = _grant_target(grant)
+    principal = _normalize_principal(grant.principal)
+    if principal in BROAD_PRINCIPALS:
+        findings.append(
+            LintFinding(
+                code="BROAD_PRINCIPAL_GRANT",
+                severity="error",
+                target=target,
+                message="Lake Formation grants to broad IAM principal groups are not controlled policy",
+                details={
+                    "principal": grant.principal,
+                    "resource": grant.resource.to_dict(),
+                },
+            )
+        )
+
+    broad_permissions = sorted(set(grant.permissions) & BROAD_PERMISSIONS)
+    if broad_permissions:
+        findings.append(
+            LintFinding(
+                code="BROAD_PERMISSION_GRANT",
+                severity="error",
+                target=target,
+                message="Broad Lake Formation permissions such as ALL/SUPER are not allowed in desired policy",
+                details={
+                    "principal": grant.principal,
+                    "resource": grant.resource.to_dict(),
+                    "permissions": broad_permissions,
+                },
+            )
+        )
+
+    mutating_permissions = sorted(set(grant.permissions) & MUTATING_PERMISSIONS)
+    if mutating_permissions:
+        findings.append(
+            LintFinding(
+                code="MUTATING_PERMISSION_REVIEW",
+                severity="warning",
+                target=target,
+                message="Mutating Lake Formation permissions should be isolated from routine read workflows",
+                details={
+                    "principal": grant.principal,
+                    "resource": grant.resource.to_dict(),
+                    "permissions": mutating_permissions,
+                },
+            )
+        )
+
+    if grant.grantable_permissions:
+        findings.append(
+            LintFinding(
+                code="GRANTABLE_PERMISSION_REVIEW",
+                severity="warning",
+                target=target,
+                message="Grant option delegates Lake Formation authority and should be separately reviewed",
+                details={
+                    "principal": grant.principal,
+                    "resource": grant.resource.to_dict(),
+                    "grantable_permissions": list(grant.grantable_permissions),
+                },
+            )
+        )
+
+    if grant.resource.kind in NAMED_GRANT_RESOURCE_KINDS:
+        findings.append(
+            LintFinding(
+                code="NAMED_RESOURCE_GRANT_REVIEW",
+                severity="warning",
+                target=target,
+                message="Named database/table grants should be documented exceptions; prefer LF-Tag policy grants",
+                details={
+                    "principal": grant.principal,
+                    "resource": grant.resource.to_dict(),
+                    "permissions": list(grant.permissions),
+                },
+            )
+        )
+
+    return findings
+
+
 def _case_sensitive_values(values: Tuple[str, ...]) -> Tuple[str, ...]:
     return tuple(value for value in values if value != value.lower())
+
+
+def _normalize_principal(principal: str) -> str:
+    return principal.strip().lower().replace(" ", "").replace("-", "_")
 
 
 def _grant_target(grant: Grant) -> str:
