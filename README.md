@@ -409,6 +409,8 @@ PyPI publisher settings.
   shapes for audits, plans, applies, and CI artifacts.
 - [`docs/architecture.md`](docs/architecture.md): package boundaries, data
   flow, public API, and AWS adapter responsibilities.
+- [`docs/roadmap.md`](docs/roadmap.md): release scope, near-term priorities,
+  non-goals, and good first contribution areas.
 - [`docs/safety-model.md`](docs/safety-model.md): conservative defaults,
   destructive-change flags, apply behavior, and production patterns.
 - [`docs/positioning.md`](docs/positioning.md): where `lfguard` fits next to

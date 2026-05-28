@@ -34,6 +34,7 @@
 - Adds a copyable pre-commit validation hook example under `examples/`.
 - Adds an architecture guide for package boundaries, data flow, and AWS adapter
   responsibilities.
+- Adds a roadmap with near-term priorities, evaluation questions, and non-goals.
 - Adds a `sample` command for generating a runnable offline demo after install,
   including a local README with copy-paste commands.
 - Adds a state-format guide with examples for each supported resource kind.

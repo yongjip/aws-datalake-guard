@@ -60,6 +60,7 @@ class PackageMetadataTests(unittest.TestCase):
             "Adoption Checklist",
             "Report Formats",
             "Architecture",
+            "Roadmap",
             "Safety Model",
             "Positioning",
             "State Format",
