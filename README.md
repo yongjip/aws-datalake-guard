@@ -403,6 +403,8 @@ PyPI publisher settings.
   codes.
 - [`docs/recipes.md`](docs/recipes.md): audit-only, CI, and controlled apply
   workflows.
+- [`docs/adoption-checklist.md`](docs/adoption-checklist.md): step-by-step
+  rollout from offline demo to CI and controlled apply.
 - [`docs/report-formats.md`](docs/report-formats.md): JSON and Markdown report
   shapes for audits, plans, applies, and CI artifacts.
 - [`docs/safety-model.md`](docs/safety-model.md): conservative defaults,

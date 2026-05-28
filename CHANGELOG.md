@@ -22,6 +22,8 @@
 - Includes an optional boto3 adapter for live AWS inventory and execution.
 - Ships offline JSON/YAML desired-state workflows and example policy files.
 - Adds an examples guide and PyPI metadata links for first-run discoverability.
+- Adds an adoption checklist for moving from offline demo to CI and controlled
+  apply workflows.
 - Adds a report-format guide for audit, plan, apply, and CI artifacts.
 - Adds a safety model guide for conservative defaults and destructive changes.
 - Adds a positioning guide for how `lfguard` fits with infrastructure tools,

@@ -50,6 +50,7 @@ class PackageMetadataTests(unittest.TestCase):
         for label in (
             "Documentation",
             "CLI Reference",
+            "Adoption Checklist",
             "Report Formats",
             "Safety Model",
             "Positioning",
