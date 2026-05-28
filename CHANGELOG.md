@@ -79,6 +79,8 @@
   upload.
 - Adds an optional `bootstrap --include-live-drift` scaffold for scheduled
   GitHub OIDC drift checks and starter read-only IAM policy JSON.
+- Adds an optional `bootstrap --include-code-scanning` scaffold for uploading
+  `lfguard` lint and drift SARIF findings to GitHub Code Scanning.
 - Adds docs tests for internal Markdown links.
 - Adds package metadata tests for version, console scripts, and project URLs.
 - Modernizes the build backend requirement for current setuptools releases.

@@ -212,6 +212,16 @@ lfguard bootstrap \
   --aws-region ap-northeast-2
 ```
 
+Include GitHub Code Scanning SARIF upload for lint and drift findings:
+
+```bash
+lfguard bootstrap \
+  --output-dir lfguard-policy \
+  --include-code-scanning \
+  --aws-role-arn arn:aws:iam::111122223333:role/LakeFormationReadOnly \
+  --aws-region ap-northeast-2
+```
+
 Create a starter desired-state file:
 
 ```bash

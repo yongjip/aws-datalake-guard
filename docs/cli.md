@@ -131,17 +131,20 @@ Useful options:
 - `--include-live-drift`: also write `.github/workflows/lfguard-live-drift.yml`
   and `iam/lfguard-read-only.json` for scheduled live AWS drift checks through
   GitHub OIDC.
-- `--aws-role-arn ARN`: role ARN to place in the generated live drift workflow.
-- `--aws-region REGION`: AWS region to place in the generated live drift
-  workflow.
+- `--include-code-scanning`: also write
+  `.github/workflows/lfguard-code-scanning.yml` for GitHub Code Scanning SARIF
+  upload. This also writes `iam/lfguard-read-only.json`.
+- `--aws-role-arn ARN`: role ARN to place in generated live AWS workflows.
+- `--aws-region REGION`: AWS region to place in generated live AWS workflows.
 - `--force`: overwrite existing bootstrap files.
 
-Live drift bootstrap example:
+Live drift and Code Scanning bootstrap example:
 
 ```bash
 lfguard bootstrap \
   --output-dir lfguard-policy \
   --include-live-drift \
+  --include-code-scanning \
   --aws-role-arn arn:aws:iam::111122223333:role/LakeFormationReadOnly \
   --aws-region ap-northeast-2
 ```

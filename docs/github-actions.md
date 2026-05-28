@@ -8,12 +8,13 @@ The same workflow is available as a copyable file at
 [`examples/github-actions/lakeformation-drift.yml`](../examples/github-actions/lakeformation-drift.yml).
 An optional Code Scanning variant is available at
 [`examples/github-actions/lakeformation-code-scanning.yml`](../examples/github-actions/lakeformation-code-scanning.yml).
-You can also generate a repository-specific starter workflow with:
+You can also generate repository-specific starter workflows with:
 
 ```bash
 lfguard bootstrap \
   --output-dir lfguard-policy \
   --include-live-drift \
+  --include-code-scanning \
   --aws-role-arn arn:aws:iam::111122223333:role/LakeFormationReadOnly \
   --aws-region ap-northeast-2
 ```

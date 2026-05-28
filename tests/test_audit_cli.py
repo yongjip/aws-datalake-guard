@@ -674,6 +674,53 @@ class AuditCliTests(unittest.TestCase):
             self.assertIn("iam/lfguard-read-only.json", readme)
             self.assertIn("ap-northeast-2", readme)
 
+    def test_cli_bootstrap_can_include_code_scanning_workflow(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output_dir = Path(tmp) / "policy-repo"
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                exit_code = main(
+                    [
+                        "bootstrap",
+                        "--output-dir",
+                        str(output_dir),
+                        "--include-code-scanning",
+                        "--aws-role-arn",
+                        "arn:aws:iam::123456789012:role/LFGuardReadOnly",
+                        "--aws-region",
+                        "ap-northeast-2",
+                    ]
+                )
+
+            workflow_path = output_dir / ".github" / "workflows" / "lfguard-code-scanning.yml"
+            iam_path = output_dir / "iam" / "lfguard-read-only.json"
+            readme_path = output_dir / "README.md"
+            workflow = workflow_path.read_text(encoding="utf-8")
+            iam_policy = json.loads(iam_path.read_text(encoding="utf-8"))
+            readme = readme_path.read_text(encoding="utf-8")
+            actions = _policy_actions(iam_policy)
+
+            self.assertEqual(exit_code, 0)
+            self.assertIn(str(workflow_path), stdout.getvalue())
+            self.assertIn("security-events: write", workflow)
+            self.assertIn("github/codeql-action/upload-sarif@v3", workflow)
+            self.assertIn("category: lfguard-lint", workflow)
+            self.assertIn("category: lfguard-audit", workflow)
+            self.assertIn("arn:aws:iam::123456789012:role/LFGuardReadOnly", workflow)
+            self.assertIn("aws-region: ap-northeast-2", workflow)
+            self.assertIn('python -m pip install "lfguard[aws]"', workflow)
+            self.assertIn("lfguard doctor --require aws", workflow)
+            self.assertIn("lfguard snapshot", workflow)
+            self.assertIn("lfguard check", workflow)
+            self.assertIn("lfguard audit", workflow)
+            self.assertIn("lfguard-code-scanning-reports", workflow)
+            self.assertIn("lakeformation:GetLFTag", actions)
+            self.assertNotIn("lakeformation:GrantPermissions", actions)
+            self.assertIn(".github/workflows/lfguard-code-scanning.yml", readme)
+            self.assertIn("iam/lfguard-read-only.json", readme)
+            self.assertIn("upload SARIF", readme)
+
     def test_cli_bootstrap_can_write_yaml_layout(self):
         with tempfile.TemporaryDirectory() as tmp:
             output_dir = Path(tmp) / "policy-repo"
@@ -710,6 +757,29 @@ class AuditCliTests(unittest.TestCase):
                 )
 
             workflow = (output_dir / ".github" / "workflows" / "lfguard-live-drift.yml").read_text(encoding="utf-8")
+
+            self.assertEqual(exit_code, 0)
+            self.assertIn('python -m pip install "lfguard[aws,yaml]"', workflow)
+            self.assertIn("lfguard doctor --require aws --require yaml", workflow)
+            self.assertIn("--desired policy/desired.yaml", workflow)
+
+    def test_cli_bootstrap_code_scanning_installs_yaml_and_aws_extras_for_yaml_layout(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output_dir = Path(tmp) / "policy-repo"
+
+            with contextlib.redirect_stdout(io.StringIO()):
+                exit_code = main(
+                    [
+                        "bootstrap",
+                        "--output-dir",
+                        str(output_dir),
+                        "--format",
+                        "yaml",
+                        "--include-code-scanning",
+                    ]
+                )
+
+            workflow = (output_dir / ".github" / "workflows" / "lfguard-code-scanning.yml").read_text(encoding="utf-8")
 
             self.assertEqual(exit_code, 0)
             self.assertIn('python -m pip install "lfguard[aws,yaml]"', workflow)
@@ -978,6 +1048,7 @@ class AuditCliTests(unittest.TestCase):
         self.assertEqual(exit_code, 0)
         self.assertIn("complete -F _lfguard_complete lfguard aws-lakeformation-guard", script)
         self.assertIn("bootstrap", script)
+        self.assertIn("--include-code-scanning", script)
         self.assertIn("--include-glue-read", script)
 
     def test_cli_completion_outputs_zsh_script(self):
