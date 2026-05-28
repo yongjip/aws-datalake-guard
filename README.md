@@ -182,6 +182,12 @@ Check whether optional AWS/YAML integrations are installed:
 lfguard doctor --output json
 ```
 
+Fail when a CI job is missing an optional integration it needs:
+
+```bash
+lfguard doctor --require aws --require yaml
+```
+
 Save the install check for CI diagnostics:
 
 ```bash

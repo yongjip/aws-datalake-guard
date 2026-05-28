@@ -37,6 +37,9 @@ jobs:
       - name: Install lfguard
         run: python -m pip install "lfguard[aws,yaml]"
 
+      - name: Check lfguard install
+        run: lfguard doctor --require aws --require yaml
+
       - name: Export policy schema
         run: lfguard schema --output-file policy/lfguard.schema.json
 

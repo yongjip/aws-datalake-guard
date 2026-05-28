@@ -7,6 +7,8 @@
   `sample`, `doctor`, `snapshot`, and conservative `apply` commands.
 - Adds text, JSON, and Markdown output for reviewable audit and plan workflows.
 - Adds an offline install check for optional AWS and YAML integrations.
+- Adds `doctor --require` checks for failing CI when required optional extras
+  are missing.
 - Adds a `--github-summary` option for GitHub Actions job summaries.
 - Adds a `--fail-on-changes` option for CI plan gates.
 - Adds a `--fail-on-severity` option for error-only audit gates.

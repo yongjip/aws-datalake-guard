@@ -84,6 +84,13 @@ def build_parser() -> argparse.ArgumentParser:
     doctor_parser = subparsers.add_parser("doctor", help="Check local lfguard install and optional integrations.")
     _add_output_arg(doctor_parser)
     _add_report_output_file_arg(doctor_parser)
+    doctor_parser.add_argument(
+        "--require",
+        action="append",
+        choices=("aws", "yaml"),
+        default=[],
+        help="Fail when the named optional extra is not installed. Repeat for multiple extras.",
+    )
 
     audit_parser = subparsers.add_parser("audit", help="Report drift between desired and current Lake Formation state.")
     _add_state_args(audit_parser)
@@ -211,8 +218,10 @@ def _cmd_schema(args: argparse.Namespace) -> int:
 
 
 def _cmd_doctor(args: argparse.Namespace) -> int:
-    report = _doctor_report()
+    report = _doctor_report(required_extras=args.require)
     _emit_output(_render_doctor(report, args.output), args.output_file, label="doctor report")
+    if report["missing_required_extras"]:
+        return 1
     return 0
 
 
@@ -373,8 +382,8 @@ def _dump_starter_desired_state(output_format: str) -> str:
     return dumps_json(data)
 
 
-def _doctor_report() -> dict:
-    return {
+def _doctor_report(required_extras: Optional[Iterable[str]] = None) -> dict:
+    report = {
         "version": __version__,
         "python": {
             "version": platform.python_version(),
@@ -401,6 +410,19 @@ def _doctor_report() -> dict:
         },
         "aws_calls_made": False,
     }
+    required = tuple(sorted(set(required_extras or ())))
+    report["required_extras"] = list(required)
+    report["missing_required_extras"] = [
+        extra for extra in required if not _optional_extra_installed(report, extra)
+    ]
+    return report
+
+
+def _optional_extra_installed(report: dict, extra: str) -> bool:
+    for status in report["optional_dependencies"].values():
+        if status["extra"] == extra:
+            return bool(status["installed"])
+    return False
 
 
 def _dependency_status(module_name: str, distribution_name: str, *, extra: str, purpose: str) -> dict:
@@ -442,6 +464,11 @@ def _render_doctor(report: dict, output: str) -> str:
     lines.append("- profile: {}".format(aws_env["profile"] or "not set"))
     lines.append("- region: {}".format(aws_env["region"] or "not set"))
     lines.append("- catalog_id: {}".format(aws_env["catalog_id"] or "not set"))
+    if report["required_extras"]:
+        lines.append("Required extras:")
+        for extra in report["required_extras"]:
+            state = "missing" if extra in report["missing_required_extras"] else "installed"
+            lines.append("- {}: {}".format(extra, state))
     lines.append("No AWS calls were made.")
     return "\n".join(lines) + "\n"
 

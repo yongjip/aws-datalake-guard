@@ -120,8 +120,12 @@ environment variables without making AWS calls:
 ```bash
 lfguard doctor
 lfguard doctor --output json
+lfguard doctor --require aws --require yaml
 lfguard doctor --output json --output-file artifacts/lfguard-doctor.json
 ```
+
+Use `--require aws` or `--require yaml` to return exit code `1` when a needed
+optional extra is missing. Repeat `--require` to check multiple extras.
 
 ## `validate`
 

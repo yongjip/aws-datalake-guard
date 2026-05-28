@@ -18,6 +18,12 @@ Save a JSON diagnostics artifact when debugging CI installs:
 lfguard doctor --output json --output-file artifacts/lfguard-doctor.json
 ```
 
+Fail early when a workflow needs optional AWS or YAML integrations:
+
+```bash
+lfguard doctor --require aws --require yaml
+```
+
 Generate a starter desired-state policy, then replace the example principal,
 database, table, and tag values with your environment's names.
 

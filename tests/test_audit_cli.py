@@ -681,6 +681,18 @@ class AuditCliTests(unittest.TestCase):
             self.assertIn("optional_dependencies", payload)
             self.assertFalse(payload["aws_calls_made"])
 
+    def test_cli_doctor_can_fail_when_required_extra_is_missing(self):
+        stdout = io.StringIO()
+        with patch("lakeformation_guard.cli.util.find_spec", return_value=None):
+            with contextlib.redirect_stdout(stdout):
+                exit_code = main(["doctor", "--require", "yaml", "--output", "json"])
+
+        payload = json.loads(stdout.getvalue())
+        self.assertEqual(exit_code, 1)
+        self.assertEqual(payload["required_extras"], ["yaml"])
+        self.assertEqual(payload["missing_required_extras"], ["yaml"])
+        self.assertFalse(payload["optional_dependencies"]["PyYAML"]["installed"])
+
     def test_cli_validate_outputs_json_summary(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)

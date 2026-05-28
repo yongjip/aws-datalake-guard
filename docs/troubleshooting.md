@@ -7,6 +7,12 @@ optional extras, and AWS-related environment variables without making AWS calls.
 lfguard doctor --output json
 ```
 
+When a workflow requires optional integrations, make the check fail early:
+
+```bash
+lfguard doctor --require aws --require yaml
+```
+
 ## `No module named boto3`
 
 Live AWS commands need the AWS extra:
