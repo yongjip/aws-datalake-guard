@@ -529,6 +529,19 @@ class AuditCliTests(unittest.TestCase):
             self.assertEqual(exit_code, 0)
             self.assertIn("lf_tags", payload)
 
+    def test_cli_init_can_generate_blank_template(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output_path = Path(tmp) / "policy" / "desired.json"
+
+            exit_code = main(["init", "--output-file", str(output_path), "--template", "blank"])
+
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+            desired = DesiredState.from_dict(payload)
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(len(desired.lf_tags), 0)
+            self.assertEqual(len(desired.resource_tags), 0)
+            self.assertEqual(len(desired.grants), 0)
+
     def test_cli_init_refuses_to_overwrite_without_force(self):
         with tempfile.TemporaryDirectory() as tmp:
             output_path = Path(tmp) / "desired.json"

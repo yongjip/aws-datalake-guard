@@ -158,6 +158,13 @@ Create a starter desired-state file:
 lfguard init --output-file policy/desired.json
 ```
 
+Start from an empty policy skeleton when you want to fill in every tag,
+assignment, and grant yourself:
+
+```bash
+lfguard init --template blank --output-file policy/desired.json
+```
+
 Generate paired offline sample files for a local demo:
 
 ```bash

@@ -18,6 +18,8 @@
 - Documents GitHub Actions report artifact uploads and preserves CI build artifacts.
 - Adds a CLI reference with command semantics, common options, and exit codes.
 - Adds YAML starter policy generation and a YAML example policy.
+- Adds `init --template` starter policies for a data-domain example or blank
+  policy skeleton.
 - Ships a JSON Schema for desired/current state files.
 - Adds importable planning and audit APIs under `lakeformation_guard`.
 - Supports LF-Tag definitions, resource tag assignments, and Lake Formation grants.

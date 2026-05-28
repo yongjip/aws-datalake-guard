@@ -80,10 +80,17 @@ Useful options:
 
 - `--output-file PATH`: write the starter policy to a file.
 - `--format json|yaml`: force the output format.
+- `--template data-domain|blank`: choose the starter policy. `data-domain`
+  includes example LF-Tags, one table tag assignment, and one LF-Tag policy
+  grant. `blank` writes an empty valid policy skeleton.
 - `--force`: overwrite an existing output file.
 
 When `--format` is omitted, `.yaml` and `.yml` output paths produce YAML;
 stdout defaults to JSON.
+
+```bash
+lfguard init --template blank --output-file policy/desired.json
+```
 
 ## `sample`
 

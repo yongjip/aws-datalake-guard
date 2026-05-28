@@ -66,6 +66,12 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("json", "yaml"),
         help="Starter policy output format. Defaults to the output file extension, or json for stdout.",
     )
+    init_parser.add_argument(
+        "--template",
+        choices=("data-domain", "blank"),
+        default="data-domain",
+        help="Starter policy template. Defaults to data-domain.",
+    )
     init_parser.add_argument("--force", action="store_true", help="Overwrite the output file if it already exists.")
 
     sample_parser = subparsers.add_parser("sample", help="Generate offline demo desired/current state files.")
@@ -163,7 +169,7 @@ def _cmd_plan(args: argparse.Namespace) -> int:
 
 def _cmd_init(args: argparse.Namespace) -> int:
     output_format = _resolve_init_format(args.format, args.output_file)
-    text = _dump_starter_desired_state(output_format)
+    text = _dump_starter_desired_state(output_format, args.template)
     if args.output_file:
         output_path = Path(args.output_file)
         if output_path.exists() and not args.force:
@@ -375,8 +381,8 @@ def _resolve_init_format(requested_format: Optional[str], output_file: Optional[
     return "json"
 
 
-def _dump_starter_desired_state(output_format: str) -> str:
-    data = _starter_desired_state()
+def _dump_starter_desired_state(output_format: str, template: str = "data-domain") -> str:
+    data = _starter_desired_state(template)
     if output_format == "yaml":
         return dumps_yaml(data)
     return dumps_json(data)
@@ -485,7 +491,15 @@ def _render_validation(desired_summary: dict, current_summary: Optional[dict], o
     return "\n".join(lines) + "\n"
 
 
-def _starter_desired_state() -> dict:
+def _starter_desired_state(template: str = "data-domain") -> dict:
+    if template == "blank":
+        return {
+            "lf_tags": {},
+            "resource_tags": [],
+            "grants": [],
+        }
+    if template != "data-domain":
+        raise ValueError("unsupported starter template: {}".format(template))
     return {
         "lf_tags": {
             "domain": ["analytics"],
