@@ -88,6 +88,11 @@ def build_parser() -> argparse.ArgumentParser:
         default="json",
         help="Sample state file format. Defaults to json.",
     )
+    sample_parser.add_argument(
+        "--include-ci",
+        action="store_true",
+        help="Also write a starter GitHub Actions workflow for the offline demo.",
+    )
     sample_parser.add_argument("--force", action="store_true", help="Overwrite sample files if they already exist.")
 
     schema_parser = subparsers.add_parser("schema", help="Emit the JSON Schema for desired/current state files.")
@@ -235,7 +240,11 @@ def _cmd_init(args: argparse.Namespace) -> int:
 
 def _cmd_sample(args: argparse.Namespace) -> int:
     output_dir = Path(args.output_dir)
-    files = _sample_files(args.format)
+    files = _sample_files(
+        args.format,
+        include_ci=args.include_ci,
+        workflow_path_prefix=_sample_workflow_path_prefix(output_dir),
+    )
     existing = [output_dir / name for name in files if (output_dir / name).exists()]
     if existing and not args.force:
         raise RuntimeError(
@@ -246,7 +255,9 @@ def _cmd_sample(args: argparse.Namespace) -> int:
     try:
         output_dir.mkdir(parents=True, exist_ok=True)
         for name, text in files.items():
-            (output_dir / name).write_text(text, encoding="utf-8")
+            output_path = output_dir / name
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(text, encoding="utf-8")
     except OSError as exc:
         raise RuntimeError("Could not write sample files to {}: {}".format(output_dir, exc)) from exc
 
@@ -254,6 +265,9 @@ def _cmd_sample(args: argparse.Namespace) -> int:
     print("Run:")
     desired_name, current_name = _sample_primary_files(args.format)
     print("  lfguard plan --desired {}/{} --current-snapshot {}/{}".format(output_dir, desired_name, output_dir, current_name))
+    if args.include_ci:
+        print("\nGitHub Actions demo workflow:")
+        print("  {}/.github/workflows/lfguard-demo.yml".format(output_dir))
     print("\nSee {}/README.md for more commands.".format(output_dir))
     return 0
 
@@ -818,7 +832,7 @@ def _sample_current_state() -> dict:
     }
 
 
-def _sample_files(output_format: str) -> dict:
+def _sample_files(output_format: str, *, include_ci: bool = False, workflow_path_prefix: str = ".") -> dict:
     desired = _sample_desired_state()
     current = _sample_current_state()
     files = {}
@@ -834,7 +848,15 @@ def _sample_files(output_format: str) -> dict:
         current_name,
         include_yaml_note=output_format in {"yaml", "both"},
         include_both_note=output_format == "both",
+        include_ci_note=include_ci,
     )
+    if include_ci:
+        files[".github/workflows/lfguard-demo.yml"] = _sample_github_actions_workflow(
+            desired_name,
+            current_name,
+            workflow_path_prefix=workflow_path_prefix,
+            needs_yaml_extra=desired_name.endswith((".yaml", ".yml")),
+        )
     return files
 
 
@@ -844,12 +866,101 @@ def _sample_primary_files(output_format: str) -> tuple:
     return "desired.json", "current-snapshot.json"
 
 
+def _sample_workflow_path_prefix(output_dir: Path) -> str:
+    rendered = str(output_dir)
+    if rendered in {"", "."}:
+        return "."
+    if output_dir.is_absolute():
+        return output_dir.name or "."
+    return rendered.rstrip("/") or "."
+
+
+def _workflow_path(prefix: str, name: str) -> str:
+    if prefix == ".":
+        return name
+    return "{}/{}".format(prefix, name)
+
+
+def _sample_github_actions_workflow(
+    desired_name: str,
+    current_name: str,
+    *,
+    workflow_path_prefix: str,
+    needs_yaml_extra: bool,
+) -> str:
+    desired_path = _workflow_path(workflow_path_prefix, desired_name)
+    current_path = _workflow_path(workflow_path_prefix, current_name)
+    install_target = '"lfguard[yaml]"' if needs_yaml_extra else "lfguard"
+    return """name: lfguard demo
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "{desired_path}"
+      - "{current_path}"
+
+permissions:
+  contents: read
+
+jobs:
+  lfguard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install lfguard
+        run: python -m pip install {install_target}
+
+      - name: Validate state files
+        run: lfguard validate --desired {desired_path} --current-snapshot {current_path}
+
+      - name: Lint desired policy
+        run: lfguard lint --desired {desired_path} --fail-on-findings --github-summary
+
+      - name: Save audit and plan reports
+        run: |
+          mkdir -p artifacts
+
+          lfguard audit \\
+            --desired {desired_path} \\
+            --current-snapshot {current_path} \\
+            --output markdown \\
+            --output-file artifacts/lfguard-audit.md \\
+            --github-summary
+
+          lfguard plan \\
+            --desired {desired_path} \\
+            --current-snapshot {current_path} \\
+            --output markdown \\
+            --output-file artifacts/lfguard-plan.md \\
+            --github-summary
+
+      - name: Upload lfguard reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lfguard-demo-reports
+          path: artifacts/
+          if-no-files-found: ignore
+""".format(
+        current_path=current_path,
+        desired_path=desired_path,
+        install_target=install_target,
+    )
+
+
 def _sample_readme(
     desired_name: str,
     current_name: str,
     *,
     include_yaml_note: bool = False,
     include_both_note: bool = False,
+    include_ci_note: bool = False,
 ) -> str:
     yaml_note = ""
     if include_yaml_note:
@@ -868,13 +979,24 @@ python -m pip install "lfguard[yaml]"
 with the base `lfguard` install.
 
 """
+    ci_note = ""
+    if include_ci_note:
+        ci_note = """## GitHub Actions Demo
+
+This directory includes `.github/workflows/lfguard-demo.yml`, an offline
+workflow that validates, lints, audits, plans, and uploads Markdown reports. If
+this sample directory is not your repository root, commit the sample directory
+and copy its `.github` directory to the repository root before enabling the
+workflow.
+
+"""
     return """# lfguard Demo
 
 This directory contains a desired Lake Formation guardrail policy and a
 deliberately incomplete current-state snapshot. It is safe to use without AWS
 credentials.
 
-{both_note}{yaml_note}
+{both_note}{yaml_note}{ci_note}
 ## Validate
 
 ```bash
@@ -928,6 +1050,7 @@ lfguard plan \\
 ```
 """.format(
         both_note=both_note,
+        ci_note=ci_note,
         current_name=current_name,
         desired_name=desired_name,
         yaml_note=yaml_note,

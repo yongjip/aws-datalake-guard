@@ -101,7 +101,7 @@ lfguard init --template blank --output-file policy/desired.json
 Generate paired offline demo files that work immediately after `pip install`:
 
 ```bash
-lfguard sample --output-dir lfguard-demo
+lfguard sample --output-dir lfguard-demo --include-ci
 lfguard plan \
   --desired lfguard-demo/desired.json \
   --current-snapshot lfguard-demo/current-snapshot.json
@@ -113,6 +113,9 @@ Useful options:
   `current-snapshot.json`, plus a local `README.md` with demo commands.
 - `--format json|yaml|both`: choose JSON sample files, YAML sample files, or
   both. YAML files require `lfguard[yaml]` when read by later commands.
+- `--include-ci`: also write `.github/workflows/lfguard-demo.yml`, an offline
+  GitHub Actions workflow that validates, lints, audits, plans, and uploads
+  report artifacts for the generated sample files.
 - `--force`: overwrite existing sample files.
 
 ## `schema`

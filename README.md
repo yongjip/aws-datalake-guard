@@ -76,11 +76,12 @@ lfguard doctor
 Generate a runnable offline demo with no AWS credentials:
 
 ```bash
-lfguard sample --output-dir lfguard-demo
+lfguard sample --output-dir lfguard-demo --include-ci
 ```
 
-The command writes `desired.json`, `current-snapshot.json`, and a short
-`README.md` with copy-paste commands.
+The command writes `desired.json`, `current-snapshot.json`, a short `README.md`
+with copy-paste commands, and an optional offline GitHub Actions workflow under
+`.github/workflows/lfguard-demo.yml`.
 
 Plan against the generated desired state and deliberately incomplete snapshot:
 
@@ -170,6 +171,12 @@ Generate paired offline sample files for a local demo:
 
 ```bash
 lfguard sample --output-dir lfguard-demo
+```
+
+Include a starter GitHub Actions workflow that runs the offline demo in CI:
+
+```bash
+lfguard sample --output-dir lfguard-demo --include-ci
 ```
 
 Generate YAML sample files when your policy repository uses YAML:

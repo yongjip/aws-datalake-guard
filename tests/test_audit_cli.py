@@ -639,6 +639,26 @@ class AuditCliTests(unittest.TestCase):
             self.assertEqual(plan_exit_code, 0)
             self.assertIn("Plan: 3 change(s), 3 safe, 0 destructive.", plan_stdout.getvalue())
 
+    def test_cli_sample_can_include_github_actions_demo_workflow(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output_dir = Path(tmp) / "lfguard-demo"
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                exit_code = main(["sample", "--output-dir", str(output_dir), "--include-ci"])
+
+            workflow_path = output_dir / ".github" / "workflows" / "lfguard-demo.yml"
+            workflow = workflow_path.read_text(encoding="utf-8")
+            readme = (output_dir / "README.md").read_text(encoding="utf-8")
+
+            self.assertEqual(exit_code, 0)
+            self.assertIn(str(workflow_path), stdout.getvalue())
+            self.assertIn("GitHub Actions Demo", readme)
+            self.assertIn("python -m pip install lfguard", workflow)
+            self.assertIn("lfguard validate --desired lfguard-demo/desired.json", workflow)
+            self.assertIn("lfguard lint --desired lfguard-demo/desired.json --fail-on-findings", workflow)
+            self.assertIn("actions/upload-artifact@v4", workflow)
+
     def test_cli_sample_can_write_yaml_demo_files(self):
         with tempfile.TemporaryDirectory() as tmp:
             output_dir = Path(tmp) / "lfguard-demo"
@@ -658,7 +678,20 @@ class AuditCliTests(unittest.TestCase):
             self.assertIn("lfguard[yaml]", readme)
             self.assertIn("desired.yaml", readme)
             self.assertIn("current-snapshot.yaml", readme)
-            self.assertIn("desired.yaml", stdout.getvalue())
+
+    def test_cli_sample_ci_workflow_installs_yaml_extra_for_yaml_demo(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output_dir = Path(tmp) / "lfguard-demo"
+
+            with contextlib.redirect_stdout(io.StringIO()):
+                exit_code = main(["sample", "--output-dir", str(output_dir), "--format", "yaml", "--include-ci"])
+
+            workflow = (output_dir / ".github" / "workflows" / "lfguard-demo.yml").read_text(encoding="utf-8")
+
+            self.assertEqual(exit_code, 0)
+            self.assertIn('python -m pip install "lfguard[yaml]"', workflow)
+            self.assertIn("lfguard validate --desired lfguard-demo/desired.yaml", workflow)
+            self.assertIn("--current-snapshot lfguard-demo/current-snapshot.yaml", workflow)
 
     def test_cli_sample_can_write_both_json_and_yaml_demo_files(self):
         with tempfile.TemporaryDirectory() as tmp:

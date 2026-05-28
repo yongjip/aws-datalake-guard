@@ -48,6 +48,8 @@
 - Adds publish-ready release notes for the first public PyPI release.
 - Adds a `sample` command for generating a runnable offline demo after install,
   including a local README with copy-paste commands.
+- Adds `sample --include-ci` for generating an offline GitHub Actions demo
+  workflow alongside the sample files.
 - Adds JSON, YAML, and combined output formats for generated sample demos.
 - Adds a state-format guide with examples for each supported resource kind.
 - Adds an AWS API coverage guide for live inventory and apply calls.

@@ -53,6 +53,13 @@ The generated current snapshot is deliberately incomplete, so the plan contains
 safe additive changes. The sample directory also includes a local `README.md`
 with validate, audit, plan, and report commands.
 
+Add `--include-ci` when you also want a starter GitHub Actions workflow for the
+offline demo:
+
+```bash
+lfguard sample --output-dir lfguard-demo --include-ci
+```
+
 Generate a YAML demo when your policy repo uses YAML:
 
 ```bash
