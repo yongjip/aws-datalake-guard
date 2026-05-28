@@ -7,6 +7,33 @@ from lakeformation_guard import DesiredState, Grant, ResourceRef
 
 
 class DocumentationExampleTests(unittest.TestCase):
+    def test_internal_markdown_links_resolve(self):
+        root = Path(__file__).resolve().parents[1]
+        docs_paths = [
+            root / "README.md",
+            *sorted((root / "docs").glob("*.md")),
+            *sorted((root / "examples").glob("*.md")),
+            root / "CHANGELOG.md",
+            root / "CONTRIBUTING.md",
+            root / "SECURITY.md",
+        ]
+        link_pattern = re.compile(r"(?<!!)\[[^\]]+\]\(([^)]+)\)")
+
+        for docs_path in docs_paths:
+            text = docs_path.read_text(encoding="utf-8")
+            for match in link_pattern.finditer(text):
+                target = match.group(1).strip()
+                if not target or _is_external_link(target) or target.startswith("#"):
+                    continue
+                target_path = target.split("#", 1)[0]
+                if not target_path:
+                    continue
+                resolved = (docs_path.parent / target_path).resolve()
+                self.assertTrue(
+                    resolved.exists(),
+                    "{} links to missing {}".format(docs_path.relative_to(root), target),
+                )
+
     def test_state_format_json_examples_parse(self):
         docs_path = Path(__file__).resolve().parents[1] / "docs" / "state-format.md"
         text = docs_path.read_text(encoding="utf-8")
@@ -54,3 +81,7 @@ class DocumentationExampleTests(unittest.TestCase):
             "lakeformation:RevokePermissions",
         ):
             self.assertIn(action, docs_text)
+
+
+def _is_external_link(target: str) -> bool:
+    return target.startswith(("http://", "https://", "mailto:"))
