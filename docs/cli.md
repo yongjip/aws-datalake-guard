@@ -61,6 +61,9 @@ python -m pip install "lfguard[aws]"
 Report files and GitHub summaries are written before `audit --fail-on-findings`
 or `plan --fail-on-changes` return exit code `1`.
 
+See [`report-formats.md`](report-formats.md) for JSON and Markdown payload
+examples for audit, plan, and apply reports.
+
 ## `init`
 
 Generate a starter desired policy:

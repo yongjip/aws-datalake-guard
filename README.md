@@ -386,6 +386,8 @@ PyPI publisher settings.
   codes.
 - [`docs/recipes.md`](docs/recipes.md): audit-only, CI, and controlled apply
   workflows.
+- [`docs/report-formats.md`](docs/report-formats.md): JSON and Markdown report
+  shapes for audits, plans, applies, and CI artifacts.
 - [`docs/schema.json`](docs/schema.json): JSON Schema for desired/current state
   files.
 - [`docs/github-actions.md`](docs/github-actions.md): a copy-paste drift check

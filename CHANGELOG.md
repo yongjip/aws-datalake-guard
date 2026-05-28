@@ -22,3 +22,4 @@
 - Includes an optional boto3 adapter for live AWS inventory and execution.
 - Ships offline JSON/YAML desired-state workflows and example policy files.
 - Adds an examples guide and PyPI metadata links for first-run discoverability.
+- Adds a report-format guide for audit, plan, apply, and CI artifacts.
