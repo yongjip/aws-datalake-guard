@@ -104,6 +104,7 @@ class PackageMetadataTests(unittest.TestCase):
 
         self.assertIn("verify-pypi:", workflow)
         self.assertIn("needs: publish", workflow)
-        self.assertIn("python -m pip install lfguard", workflow)
+        self.assertIn("python -m pip install --no-cache-dir lfguard", workflow)
+        self.assertIn("sleep 15", workflow)
         self.assertIn("lfguard sample --output-dir /tmp/lfguard-pypi-demo", workflow)
         self.assertIn("aws-lakeformation-guard --version", workflow)

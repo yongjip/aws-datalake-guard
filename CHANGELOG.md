@@ -71,6 +71,7 @@
 - Adds CI and release workflow smoke tests for the built wheel.
 - Adds a release workflow gate that installs and smoke-tests the package from
   PyPI after publishing.
+- Retries the post-publish PyPI install briefly to tolerate index propagation.
 - Adds docs tests for internal Markdown links.
 - Adds package metadata tests for version, console scripts, and project URLs.
 - Modernizes the build backend requirement for current setuptools releases.

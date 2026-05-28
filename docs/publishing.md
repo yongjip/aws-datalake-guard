@@ -51,7 +51,8 @@ git ls-remote --tags origin v0.1.0
 ```
 
 The release workflow also runs this published-package smoke test automatically
-after upload.
+after upload. The PyPI install step retries briefly because a new project or
+version can take a short time to become available through the package index.
 
 ## Manual Fallback
 
