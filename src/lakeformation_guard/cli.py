@@ -40,6 +40,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             return _cmd_doctor(args)
         if args.command == "permissions":
             return _cmd_permissions(args)
+        if args.command == "completion":
+            return _cmd_completion(args)
         if args.command == "plan":
             return _cmd_plan(args)
         if args.command == "audit":
@@ -143,6 +145,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _add_output_arg(permissions_parser, markdown=True)
     _add_report_output_file_arg(permissions_parser)
+
+    completion_parser = subparsers.add_parser("completion", help="Emit shell completion scripts for lfguard.")
+    completion_parser.add_argument(
+        "--shell",
+        choices=("bash", "zsh", "fish"),
+        default="bash",
+        help="Shell completion format to emit. Defaults to bash.",
+    )
+    _add_report_output_file_arg(completion_parser)
 
     audit_parser = subparsers.add_parser("audit", help="Report drift between desired and current Lake Formation state.")
     _add_state_args(audit_parser)
@@ -366,6 +377,11 @@ def _cmd_permissions(args: argparse.Namespace) -> int:
         args.output_file,
         label="permissions policy",
     )
+    return 0
+
+
+def _cmd_completion(args: argparse.Namespace) -> int:
+    _emit_output(_render_completion(args.shell), args.output_file, label="completion script")
     return 0
 
 
@@ -719,6 +735,206 @@ def _render_iam_policy(policy: dict, output: str, *, template: str) -> str:
             ]
         )
     return policy_json
+
+
+_COMPLETION_COMMANDS = (
+    "init",
+    "sample",
+    "bootstrap",
+    "schema",
+    "doctor",
+    "permissions",
+    "completion",
+    "validate",
+    "lint",
+    "summary",
+    "audit",
+    "plan",
+    "snapshot",
+    "apply",
+)
+
+
+_COMPLETION_OPTIONS = {
+    "init": ("--output-file", "--format", "--template", "--force", "--help"),
+    "sample": ("--output-dir", "--format", "--include-ci", "--force", "--help"),
+    "bootstrap": ("--output-dir", "--format", "--template", "--force", "--help"),
+    "schema": ("--output-file", "--help"),
+    "doctor": ("--output", "--output-file", "--require", "--help"),
+    "permissions": ("--template", "--include-glue-read", "--output", "--output-file", "--help"),
+    "completion": ("--shell", "--output-file", "--help"),
+    "validate": ("--desired", "--current-snapshot", "--output", "--output-file", "--help"),
+    "lint": (
+        "--desired",
+        "--output",
+        "--output-file",
+        "--github-summary",
+        "--fail-on-findings",
+        "--fail-on-severity",
+        "--help",
+    ),
+    "summary": ("--desired", "--current-snapshot", "--output", "--output-file", "--github-summary", "--help"),
+    "audit": (
+        "--desired",
+        "--current-snapshot",
+        "--profile",
+        "--region",
+        "--catalog-id",
+        "--output",
+        "--output-file",
+        "--github-summary",
+        "--fail-on-findings",
+        "--fail-on-severity",
+        "--help",
+    ),
+    "plan": (
+        "--desired",
+        "--current-snapshot",
+        "--profile",
+        "--region",
+        "--catalog-id",
+        "--output",
+        "--output-file",
+        "--github-summary",
+        "--allow-lf-tag-value-removals",
+        "--allow-resource-tag-removals",
+        "--allow-permission-revokes",
+        "--fail-on-changes",
+        "--help",
+    ),
+    "snapshot": ("--desired", "--profile", "--region", "--catalog-id", "--output-file", "--help"),
+    "apply": (
+        "--desired",
+        "--current-snapshot",
+        "--profile",
+        "--region",
+        "--catalog-id",
+        "--output",
+        "--output-file",
+        "--github-summary",
+        "--allow-lf-tag-value-removals",
+        "--allow-resource-tag-removals",
+        "--allow-permission-revokes",
+        "--execute",
+        "--help",
+    ),
+}
+
+
+def _render_completion(shell: str) -> str:
+    if shell == "zsh":
+        return _render_zsh_completion()
+    if shell == "fish":
+        return _render_fish_completion()
+    return _render_bash_completion()
+
+
+def _completion_commands() -> str:
+    return " ".join(_COMPLETION_COMMANDS)
+
+
+def _completion_options(command: str) -> str:
+    return " ".join(_COMPLETION_OPTIONS.get(command, ()))
+
+
+def _render_bash_completion() -> str:
+    lines = [
+        "_lfguard_complete() {",
+        "  local cur cmd commands opts",
+        "  COMPREPLY=()",
+        '  cur="${COMP_WORDS[COMP_CWORD]}"',
+        '  commands="{}"'.format(_completion_commands()),
+        '  cmd=""',
+        "  for word in \"${COMP_WORDS[@]:1}\"; do",
+        "    case \"$word\" in",
+        "      -* ) ;;",
+        "      * ) cmd=\"$word\"; break ;;",
+        "    esac",
+        "  done",
+        '  if [[ -z "$cmd" || "$COMP_CWORD" -eq 1 ]]; then',
+        '    COMPREPLY=( $(compgen -W "$commands --version --help" -- "$cur") )',
+        "    return 0",
+        "  fi",
+        '  opts=""',
+        '  case "$cmd" in',
+    ]
+    for command in _COMPLETION_COMMANDS:
+        lines.append('    {} ) opts="{}" ;;'.format(command, _completion_options(command)))
+    lines.extend(
+        [
+            "  esac",
+            '  COMPREPLY=( $(compgen -W "$opts" -- "$cur") )',
+            "  return 0",
+            "}",
+            "complete -F _lfguard_complete lfguard aws-lakeformation-guard",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def _render_zsh_completion() -> str:
+    lines = [
+        "#compdef lfguard aws-lakeformation-guard",
+        "",
+        "_lfguard() {",
+        "  local -a commands",
+        "  commands=(",
+    ]
+    for command in _COMPLETION_COMMANDS:
+        lines.append("    '{}:{}'".format(command, command))
+    lines.extend(
+        [
+            "  )",
+            "  _arguments -C \\",
+            "    '1:command:->command' \\",
+            "    '*::option:->option'",
+            "  case $state in",
+            "    command)",
+            "      _describe 'commands' commands",
+            "      ;;",
+            "    option)",
+            "      case $words[2] in",
+        ]
+    )
+    for command in _COMPLETION_COMMANDS:
+        options = " ".join("'{}'".format(option) for option in _COMPLETION_OPTIONS.get(command, ()))
+        lines.append("        {}) compadd {} ;;".format(command, options))
+    lines.extend(
+        [
+            "      esac",
+            "      ;;",
+            "  esac",
+            "}",
+            "",
+            "_lfguard \"$@\"",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def _render_fish_completion() -> str:
+    lines = [
+        "complete -c lfguard -f",
+        "complete -c aws-lakeformation-guard -f",
+    ]
+    for command in _COMPLETION_COMMANDS:
+        lines.append("complete -c lfguard -n '__fish_use_subcommand' -a '{}'".format(command))
+        lines.append("complete -c aws-lakeformation-guard -n '__fish_use_subcommand' -a '{}'".format(command))
+        for option in _COMPLETION_OPTIONS.get(command, ()):
+            option_name = option[2:] if option.startswith("--") else option
+            lines.append(
+                "complete -c lfguard -n '__fish_seen_subcommand_from {}' -l {}".format(command, option_name)
+            )
+            lines.append(
+                "complete -c aws-lakeformation-guard -n '__fish_seen_subcommand_from {}' -l {}".format(
+                    command,
+                    option_name,
+                )
+            )
+    lines.append("")
+    return "\n".join(lines)
 
 
 def _render_validation(desired_summary: dict, current_summary: Optional[dict], output: str) -> str:

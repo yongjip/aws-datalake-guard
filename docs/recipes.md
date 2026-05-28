@@ -24,6 +24,21 @@ Fail early when a workflow needs optional AWS or YAML integrations:
 lfguard doctor --require aws --require yaml
 ```
 
+## Enable Shell Completion
+
+Load completions into the current bash session:
+
+```bash
+source <(lfguard completion --shell bash)
+```
+
+Write persistent zsh or fish completion files:
+
+```bash
+lfguard completion --shell zsh --output-file ~/.zsh/completions/_lfguard
+lfguard completion --shell fish --output-file ~/.config/fish/completions/lfguard.fish
+```
+
 ## Bootstrap a Policy Repository
 
 Generate a starter policy-as-code layout when you want schema, CI, and

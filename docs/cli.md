@@ -18,6 +18,7 @@ Use `lfguard --help` or `lfguard <command> --help` for argparse-generated help.
 | `schema` | Emit the JSON Schema for desired/current state files. | No |
 | `doctor` | Check the local install and optional extras. | No |
 | `permissions` | Emit starter IAM policies for live AWS workflows. | No |
+| `completion` | Emit shell completion scripts for bash, zsh, or fish. | No |
 | `validate` | Parse and validate local desired/current state files. | No |
 | `lint` | Check desired policy semantics, such as undefined LF-Tag references. | No |
 | `summary` | Summarize desired and optional current state for review. | No |
@@ -40,9 +41,9 @@ State-aware commands use these options:
   and `lint` support SARIF; `permissions`, `lint`, `summary`, `audit`, `plan`,
   and `apply` support Markdown.
 - `--output-file PATH`: write the command report to a file instead of stdout
-  where supported. `doctor`, `permissions`, `validate`, `lint`, `summary`,
-  `audit`, `plan`, and `apply` support this for reports; `init`, `schema`, and
-  `snapshot` use it for generated files.
+  where supported. `doctor`, `permissions`, `completion`, `validate`, `lint`,
+  `summary`, `audit`, `plan`, and `apply` support this for reports; `init`,
+  `schema`, and `snapshot` use it for generated files.
 - `--github-summary`: append a Markdown report to `$GITHUB_STEP_SUMMARY` where
   supported.
 
@@ -188,6 +189,28 @@ Useful options:
 - `--output text|json|markdown`: choose raw JSON or a Markdown report. Text and
   JSON both emit copyable IAM policy JSON.
 - `--output-file PATH`: write the policy to a file instead of stdout.
+
+## `completion`
+
+Emit shell completion scripts:
+
+```bash
+lfguard completion --shell bash
+lfguard completion --shell zsh --output-file ~/.zsh/completions/_lfguard
+lfguard completion --shell fish --output-file ~/.config/fish/completions/lfguard.fish
+```
+
+For the current bash session:
+
+```bash
+source <(lfguard completion --shell bash)
+```
+
+Useful options:
+
+- `--shell bash|zsh|fish`: choose the shell format. Defaults to `bash`.
+- `--output-file PATH`: write the completion script to a file instead of
+  stdout.
 
 ## `validate`
 

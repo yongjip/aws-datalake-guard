@@ -154,6 +154,12 @@ lfguard --version
 lfguard --help
 ```
 
+Enable shell completion for the current bash session:
+
+```bash
+source <(lfguard completion --shell bash)
+```
+
 Bootstrap a policy repository layout with a starter desired policy, JSON Schema,
 GitHub Actions workflow, pre-commit config, and rollout README:
 

@@ -898,6 +898,44 @@ class AuditCliTests(unittest.TestCase):
         self.assertIn("lakeformation:RemoveLFTagsFromResource", actions)
         self.assertIn("lakeformation:RevokePermissions", actions)
 
+    def test_cli_completion_outputs_bash_script_by_default(self):
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            exit_code = main(["completion"])
+
+        script = stdout.getvalue()
+        self.assertEqual(exit_code, 0)
+        self.assertIn("complete -F _lfguard_complete lfguard aws-lakeformation-guard", script)
+        self.assertIn("bootstrap", script)
+        self.assertIn("--include-glue-read", script)
+
+    def test_cli_completion_outputs_zsh_script(self):
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            exit_code = main(["completion", "--shell", "zsh"])
+
+        script = stdout.getvalue()
+        self.assertEqual(exit_code, 0)
+        self.assertIn("#compdef lfguard aws-lakeformation-guard", script)
+        self.assertIn("'permissions:permissions'", script)
+        self.assertIn("compadd '--template'", script)
+
+    def test_cli_completion_outputs_fish_script_to_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output_path = Path(tmp) / "completions" / "lfguard.fish"
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                exit_code = main(["completion", "--shell", "fish", "--output-file", str(output_path)])
+
+            script = output_path.read_text(encoding="utf-8")
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stdout.getvalue(), "")
+            self.assertIn("complete -c lfguard -f", script)
+            self.assertIn("complete -c aws-lakeformation-guard -f", script)
+            self.assertIn("__fish_seen_subcommand_from permissions", script)
+            self.assertIn("-l include-glue-read", script)
+
     def test_cli_validate_outputs_json_summary(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)

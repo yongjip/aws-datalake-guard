@@ -4,8 +4,8 @@
 
 - Initial release of `lfguard`.
 - Adds the `lfguard` CLI with `init`, `schema`, `validate`, `lint`, `audit`,
-  `plan`, `sample`, `bootstrap`, `doctor`, `snapshot`, and conservative
-  `apply` commands.
+  `plan`, `sample`, `bootstrap`, `doctor`, `permissions`, `completion`,
+  `snapshot`, and conservative `apply` commands.
 - Adds desired-policy lint checks for undefined LF-Tag keys and values.
 - Adds policy summary reports for compact review of desired and current state.
 - Adds text, JSON, and Markdown output for reviewable audit and plan workflows.
@@ -15,6 +15,7 @@
   are missing.
 - Adds a `permissions` command for generating starter IAM policies for
   read-only, additive apply, and destructive apply workflows.
+- Adds a `completion` command for bash, zsh, and fish shell completions.
 - Adds a `--github-summary` option for GitHub Actions job summaries across
   lint, summary, audit, plan, and apply workflows.
 - Adds a copyable GitHub Code Scanning workflow for lint and audit SARIF
