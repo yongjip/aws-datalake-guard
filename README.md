@@ -407,6 +407,8 @@ PyPI publisher settings.
   rollout from offline demo to CI and controlled apply.
 - [`docs/report-formats.md`](docs/report-formats.md): JSON and Markdown report
   shapes for audits, plans, applies, and CI artifacts.
+- [`docs/architecture.md`](docs/architecture.md): package boundaries, data
+  flow, public API, and AWS adapter responsibilities.
 - [`docs/safety-model.md`](docs/safety-model.md): conservative defaults,
   destructive-change flags, apply behavior, and production patterns.
 - [`docs/positioning.md`](docs/positioning.md): where `lfguard` fits next to

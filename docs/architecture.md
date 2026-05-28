@@ -1,0 +1,93 @@
+# Architecture
+
+`lfguard` keeps policy comparison separate from live AWS execution. The core
+package is small enough to audit and is structured around deterministic models,
+pure audit and planning functions, and an optional boto3 adapter.
+
+## Module Boundaries
+
+- `lakeformation_guard.models` defines desired and current state objects,
+  resource references, LF-Tag definitions, tag assignments, and grants. These
+  classes normalize input and expose JSON-compatible dictionaries.
+- `lakeformation_guard.audit` compares desired and current state and returns
+  findings. It does not create a change plan and does not call AWS.
+- `lakeformation_guard.planner` compares desired and current state and returns a
+  conservative ordered plan. Destructive changes are included only when the
+  matching `PlanOptions` flag is set.
+- `lakeformation_guard.io` reads JSON or optional YAML state files.
+- `lakeformation_guard.cli` handles command parsing, report rendering, file
+  output, and exit codes.
+- `lakeformation_guard.aws` is the optional boto3 integration for live
+  inventory and apply operations.
+- `lakeformation_guard.schema` provides the JSON Schema used by the `schema`
+  command and editor or CI validation.
+
+## Data Flow
+
+Most workflows follow the same path:
+
+1. Read desired state from JSON or YAML.
+2. Load current state from a local snapshot or the AWS adapter.
+3. Normalize both inputs into `DesiredState` and `CurrentState`.
+4. Run `audit()` for drift findings or `plan()` for reviewable changes.
+5. Render text, JSON, or Markdown output.
+6. Optionally pass the plan to the AWS adapter for dry-run or execution.
+
+The audit and planner layers do not know whether current state came from a file
+or AWS. This keeps CI snapshot workflows and live workflows aligned.
+
+## Safety Invariants
+
+The safety model is enforced in several places:
+
+- `audit()` is read-only and reports drift without planning remediation.
+- `plan()` is additive by default. It plans missing LF-Tags, missing tag values,
+  missing resource tag assignments, and missing permissions.
+- Permission revokes, resource tag removals, and LF-Tag value removals require
+  explicit planner options and CLI flags.
+- `Plan.executable_changes()` excludes destructive changes unless explicitly
+  allowed.
+- `lfguard apply` is a dry run unless `--execute` is provided.
+- The boto3 adapter applies only actions represented by planner `Change`
+  objects.
+
+See [`safety-model.md`](safety-model.md) for production usage patterns and
+destructive-change review guidance.
+
+## AWS Boundary
+
+The base package does not import boto3. Live AWS usage starts only when
+`AWSLakeFormationAdapter.from_boto3()` is called or a CLI command needs live
+state. Users who only run offline audit, plan, sample, schema, or validation
+workflows do not need the `aws` extra.
+
+The adapter scopes live inventory from desired state. It reads only the LF-Tags,
+resources, and grants needed for the requested comparison, then returns a normal
+`CurrentState` object to the same audit and planner code used by offline
+workflows.
+
+## Public API
+
+The intended import surface is exposed from `lakeformation_guard`:
+
+```python
+from lakeformation_guard import CurrentState, DesiredState, PlanOptions, audit, plan
+```
+
+Use `lakeformation_guard.aws.AWSLakeFormationAdapter` only for live inventory or
+apply workflows. Internal helper functions and CLI rendering helpers are not
+part of the stable public API.
+
+## Extension Points
+
+The most common changes should stay within the existing boundaries:
+
+- Add new state shapes in `models.py` and update `schema.py`.
+- Add drift reporting in `audit.py`.
+- Add planned changes in `planner.py`.
+- Add boto3 translation or execution in `aws.py`.
+- Add CLI flags and report rendering in `cli.py`.
+- Add docs and tests for any public behavior or output shape change.
+
+Keep new AWS calls out of audit and planning code so offline CI workflows remain
+deterministic and dependency-light.

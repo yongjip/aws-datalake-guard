@@ -59,6 +59,7 @@ class PackageMetadataTests(unittest.TestCase):
             "CLI Reference",
             "Adoption Checklist",
             "Report Formats",
+            "Architecture",
             "Safety Model",
             "Positioning",
             "State Format",
