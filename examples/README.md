@@ -8,7 +8,7 @@ These files let you try `lfguard` without AWS credentials:
 - `github-actions/lakeformation-drift.yml`: a copyable GitHub Actions workflow
   for scheduled or manually dispatched drift checks against live AWS state.
 - `pre-commit/pre-commit-config.yaml`: a copyable local pre-commit hook that
-  validates a desired-state policy before commit.
+  validates and lints a desired-state policy before commit.
 
 The snapshot is missing two desired LF-Tag values, one table tag assignment, and
 one LF-Tag policy grant. That makes it useful for seeing audit findings and
@@ -31,6 +31,16 @@ lfguard validate \
 
 This command only reads local files. It should report one LF-Tag definition set,
 one resource tag assignment, and one grant in the desired policy.
+
+## Lint the Policy
+
+```bash
+lfguard lint --desired examples/desired.json
+```
+
+This command only reads the desired policy. It catches undefined LF-Tag keys and
+values in resource tag assignments and LF-Tag policy expressions before a CI job
+captures live AWS state.
 
 ## Audit Drift
 
@@ -119,9 +129,9 @@ before enabling the workflow.
 ## Copy a Pre-Commit Hook
 
 Use [`pre-commit/pre-commit-config.yaml`](pre-commit/pre-commit-config.yaml) as
-a starting point when developers should validate desired-state policy before
-committing. Copy it to `.pre-commit-config.yaml`, update the policy path, and
-install the hook in an environment where `lfguard` is available:
+a starting point when developers should validate and lint desired-state policy
+before committing. Copy it to `.pre-commit-config.yaml`, update the policy path,
+and install the hook in an environment where `lfguard` is available:
 
 ```bash
 python -m pip install lfguard pre-commit

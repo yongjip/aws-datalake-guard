@@ -92,6 +92,25 @@ lfguard validate \
   --output-file artifacts/lfguard-validate.txt
 ```
 
+## Lint Desired Policy
+
+Run this before snapshot, audit, plan, or apply when you want to catch
+undefined LF-Tag keys and values in the desired policy:
+
+```bash
+lfguard lint --desired policy/desired.json
+```
+
+Use it as a CI gate:
+
+```bash
+lfguard lint \
+  --desired policy/desired.json \
+  --output json \
+  --output-file artifacts/lfguard-lint.json \
+  --fail-on-findings
+```
+
 ## Audit in CI
 
 Store desired state in the repository and compare it with a current-state

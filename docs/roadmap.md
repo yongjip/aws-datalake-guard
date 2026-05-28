@@ -9,13 +9,13 @@ policy workflows.
 The first release focuses on the core guardrail loop:
 
 - Offline desired/current state files in JSON and optional YAML.
-- Importable `audit()` and `plan()` APIs.
-- A short `lfguard` CLI with validation, audit, plan, snapshot, and apply
+- Importable `lint_desired()`, `audit()`, and `plan()` APIs.
+- A short `lfguard` CLI with validation, lint, audit, plan, snapshot, and apply
   workflows.
 - Conservative planning defaults that omit revokes and removals unless explicitly
   allowed.
 - Optional boto3 integration for scoped Lake Formation inventory and execution.
-- Text, JSON, and Markdown reports for local review and CI artifacts.
+- Text, JSON, Markdown, and SARIF reports for local review and CI artifacts.
 
 ## Near-Term Priorities
 

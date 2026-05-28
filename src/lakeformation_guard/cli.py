@@ -14,6 +14,7 @@ from ._version import __version__
 from .audit import AuditFinding, audit
 from .aws import AWSLakeFormationAdapter
 from .io import StateFormatError, dumps_json, dumps_yaml, load_current, load_desired
+from .lint import LintFinding, lint_desired
 from .models import CurrentState, DesiredState, GuardrailState
 from .planner import Plan, PlanOptions, plan
 from .schema import state_json_schema
@@ -38,6 +39,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             return _cmd_plan(args)
         if args.command == "audit":
             return _cmd_audit(args)
+        if args.command == "lint":
+            return _cmd_lint(args)
         if args.command == "validate":
             return _cmd_validate(args)
         if args.command == "snapshot":
@@ -117,6 +120,18 @@ def build_parser() -> argparse.ArgumentParser:
     _add_output_arg(validate_parser)
     _add_report_output_file_arg(validate_parser)
 
+    lint_parser = subparsers.add_parser("lint", help="Check a desired policy for semantic issues without AWS access.")
+    lint_parser.add_argument("--desired", required=True, help="Desired state JSON/YAML file.")
+    _add_output_arg(lint_parser, markdown=True)
+    _add_report_output_file_arg(lint_parser)
+    lint_parser.add_argument("--fail-on-findings", action="store_true", help="Exit with status 1 when any lint finding is present.")
+    lint_parser.add_argument(
+        "--fail-on-severity",
+        choices=("any", "error"),
+        default="any",
+        help="Lint finding severity that triggers --fail-on-findings. Defaults to any finding.",
+    )
+
     plan_parser = subparsers.add_parser("plan", help="Produce a conservative Lake Formation change plan.")
     _add_state_args(plan_parser)
     _add_aws_args(plan_parser)
@@ -163,6 +178,15 @@ def _cmd_plan(args: argparse.Namespace) -> int:
         _append_github_summary(_render_plan_markdown(change_plan))
     _emit_output(_render_plan(change_plan, args.output), args.output_file, label="plan report")
     if change_plan.changes and args.fail_on_changes:
+        return 1
+    return 0
+
+
+def _cmd_lint(args: argparse.Namespace) -> int:
+    desired = load_desired(args.desired)
+    findings = lint_desired(desired)
+    _emit_output(_render_lint_findings(findings, args.output), args.output_file, label="lint report")
+    if args.fail_on_findings and _should_fail_on_lint_findings(findings, args.fail_on_severity):
         return 1
     return 0
 
@@ -495,6 +519,82 @@ def _render_validation(desired_summary: dict, current_summary: Optional[dict], o
     return "\n".join(lines) + "\n"
 
 
+def _render_lint_findings(findings: Iterable[LintFinding], output: str) -> str:
+    findings = tuple(findings)
+    summary = _lint_finding_summary(findings)
+    if output == "json":
+        return dumps_json(
+            {
+                "summary": summary,
+                "findings": [finding.to_dict() for finding in findings],
+            }
+        )
+    if output == "markdown":
+        return _render_lint_findings_markdown(findings)
+    if not findings:
+        return "No lint findings.\n"
+    lines = [_format_lint_finding_summary(summary)]
+    for finding in findings:
+        lines.append(
+            "- [{severity}] {code} {target}: {message}".format(
+                severity=finding.severity,
+                code=finding.code,
+                target=finding.target,
+                message=finding.message,
+            )
+        )
+    return "\n".join(lines) + "\n"
+
+
+def _render_lint_findings_markdown(findings: Iterable[LintFinding]) -> str:
+    findings = tuple(findings)
+    summary = _lint_finding_summary(findings)
+    lines = ["### lfguard lint", ""]
+    if not findings:
+        lines.append("No lint findings.")
+        return "\n".join(lines) + "\n"
+    lines.extend(
+        [
+            "- Total findings: {total}".format(**summary),
+            "- Error findings: {errors}".format(**summary),
+            "- Warning findings: {warnings}".format(**summary),
+            "",
+            "| Severity | Code | Target | Message |",
+            "| --- | --- | --- | --- |",
+        ]
+    )
+    for finding in findings:
+        lines.append(
+            "| {severity} | {code} | {target} | {message} |".format(
+                severity=_markdown_cell(finding.severity),
+                code=_markdown_cell(finding.code),
+                target=_markdown_cell(finding.target),
+                message=_markdown_cell(finding.message),
+            )
+        )
+    return "\n".join(lines) + "\n"
+
+
+def _lint_finding_summary(findings: Iterable[LintFinding]) -> dict:
+    findings = tuple(findings)
+    return {
+        "total": len(findings),
+        "errors": sum(1 for finding in findings if finding.severity == "error"),
+        "warnings": sum(1 for finding in findings if finding.severity == "warning"),
+    }
+
+
+def _format_lint_finding_summary(summary: dict) -> str:
+    return "Lint findings: {total} total, {errors} error(s), {warnings} warning(s).".format(**summary)
+
+
+def _should_fail_on_lint_findings(findings: Iterable[LintFinding], fail_on_severity: str) -> bool:
+    findings = tuple(findings)
+    if fail_on_severity == "error":
+        return any(finding.severity == "error" for finding in findings)
+    return bool(findings)
+
+
 def _starter_desired_state(template: str = "data-domain") -> dict:
     if template == "blank":
         return {
@@ -658,6 +758,12 @@ credentials.
 
 ```bash
 lfguard validate --desired {desired_name} --current-snapshot {current_name}
+```
+
+## Lint Desired Policy
+
+```bash
+lfguard lint --desired {desired_name}
 ```
 
 ## Audit Drift

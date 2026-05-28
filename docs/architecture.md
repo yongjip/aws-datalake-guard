@@ -11,6 +11,8 @@ pure audit and planning functions, and an optional boto3 adapter.
   classes normalize input and expose JSON-compatible dictionaries.
 - `lakeformation_guard.audit` compares desired and current state and returns
   findings. It does not create a change plan and does not call AWS.
+- `lakeformation_guard.lint` checks desired-state semantic consistency, such as
+  undefined LF-Tag keys or values, without current state or AWS access.
 - `lakeformation_guard.planner` compares desired and current state and returns a
   conservative ordered plan. Destructive changes are included only when the
   matching `PlanOptions` flag is set.
@@ -29,9 +31,10 @@ Most workflows follow the same path:
 1. Read desired state from JSON or YAML.
 2. Load current state from a local snapshot or the AWS adapter.
 3. Normalize both inputs into `DesiredState` and `CurrentState`.
-4. Run `audit()` for drift findings or `plan()` for reviewable changes.
-5. Render text, JSON, or Markdown output.
-6. Optionally pass the plan to the AWS adapter for dry-run or execution.
+4. Optionally run `lint_desired()` for desired-policy authoring issues.
+5. Run `audit()` for drift findings or `plan()` for reviewable changes.
+6. Render text, JSON, Markdown, or SARIF output.
+7. Optionally pass the plan to the AWS adapter for dry-run or execution.
 
 The audit and planner layers do not know whether current state came from a file
 or AWS. This keeps CI snapshot workflows and live workflows aligned.
@@ -40,6 +43,7 @@ or AWS. This keeps CI snapshot workflows and live workflows aligned.
 
 The safety model is enforced in several places:
 
+- `lint_desired()` is read-only and only inspects local desired state.
 - `audit()` is read-only and reports drift without planning remediation.
 - `plan()` is additive by default. It plans missing LF-Tags, missing tag values,
   missing resource tag assignments, and missing permissions.
@@ -58,8 +62,8 @@ destructive-change review guidance.
 
 The base package does not import boto3. Live AWS usage starts only when
 `AWSLakeFormationAdapter.from_boto3()` is called or a CLI command needs live
-state. Users who only run offline audit, plan, sample, schema, or validation
-workflows do not need the `aws` extra.
+state. Users who only run offline lint, audit, plan, sample, schema, or
+validation workflows do not need the `aws` extra.
 
 The adapter scopes live inventory from desired state. It reads only the LF-Tags,
 resources, and grants needed for the requested comparison, then returns a normal
@@ -71,7 +75,7 @@ workflows.
 The intended import surface is exposed from `lakeformation_guard`:
 
 ```python
-from lakeformation_guard import CurrentState, DesiredState, PlanOptions, audit, plan
+from lakeformation_guard import CurrentState, DesiredState, PlanOptions, audit, lint_desired, plan
 ```
 
 Use `lakeformation_guard.aws.AWSLakeFormationAdapter` only for live inventory or
@@ -84,6 +88,7 @@ The most common changes should stay within the existing boundaries:
 
 - Add new state shapes in `models.py` and update `schema.py`.
 - Add drift reporting in `audit.py`.
+- Add desired-policy semantic checks in `lint.py`.
 - Add planned changes in `planner.py`.
 - Add boto3 translation or execution in `aws.py`.
 - Add CLI flags and report rendering in `cli.py`.

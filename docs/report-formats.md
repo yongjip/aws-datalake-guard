@@ -79,6 +79,45 @@ Each SARIF result includes the finding code as `ruleId`, the finding severity
 as the SARIF level, the target resource as a logical location, and the finding
 details under `properties.details`.
 
+## Lint Reports
+
+Use lint reports when you want to catch desired-policy authoring mistakes before
+capturing AWS state or planning changes.
+
+```bash
+lfguard lint \
+  --desired examples/desired.json \
+  --output json
+```
+
+JSON lint reports contain the same severity summary shape as audit reports:
+
+```json
+{
+  "summary": {
+    "total": 1,
+    "errors": 1,
+    "warnings": 0
+  },
+  "findings": [
+    {
+      "code": "RESOURCE_TAG_VALUE_UNDEFINED",
+      "severity": "error",
+      "target": "table:database=analytics:table=orders",
+      "message": "Resource tag assignment uses LF-Tag values that are not defined",
+      "details": {
+        "tag_key": "sensitivity",
+        "undefined_values": ["restricted"]
+      }
+    }
+  ]
+}
+```
+
+Markdown lint reports use a table format suitable for pull request comments and
+job summaries. `lint --fail-on-findings` writes any configured `--output-file`
+before returning exit code `1`.
+
 ## Plan Reports
 
 Use plan reports when you want a reviewable change list before touching AWS.

@@ -42,7 +42,7 @@ extra when needed:
 python -m pip install "lfguard[yaml]"
 ```
 
-## 3. Validate Policy Shape
+## 3. Validate And Lint Policy
 
 Run validation before connecting to AWS:
 
@@ -50,8 +50,14 @@ Run validation before connecting to AWS:
 lfguard validate --desired policy/desired.json
 ```
 
+Run lint checks for undefined LF-Tag references:
+
+```bash
+lfguard lint --desired policy/desired.json --fail-on-findings
+```
+
 Commit desired state only after principal names, database names, table names,
-and LF-Tag values have passed your review rules.
+and LF-Tag values have passed parser, lint, and review rules.
 
 ## 4. Capture Current State
 

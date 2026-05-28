@@ -2,6 +2,7 @@
 
 from .audit import AuditFinding, audit
 from ._version import __version__
+from .lint import LintFinding, lint_desired
 from .models import (
     CurrentState,
     DesiredState,
@@ -24,12 +25,14 @@ __all__ = [
     "GuardrailState",
     "LFTagDefinition",
     "LFTagValue",
+    "LintFinding",
     "Plan",
     "PlanOptions",
     "ResourceRef",
     "ResourceTagAssignment",
     "__version__",
     "audit",
+    "lint_desired",
     "plan",
     "state_json_schema",
 ]

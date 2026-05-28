@@ -17,6 +17,7 @@ Use `lfguard --help` or `lfguard <command> --help` for argparse-generated help.
 | `schema` | Emit the JSON Schema for desired/current state files. | No |
 | `doctor` | Check the local install and optional extras. | No |
 | `validate` | Parse and validate local desired/current state files. | No |
+| `lint` | Check desired policy semantics, such as undefined LF-Tag references. | No |
 | `audit` | Report drift between desired and current state. | Only when `--current-snapshot` is omitted |
 | `plan` | Produce a conservative change plan. | Only when `--current-snapshot` is omitted |
 | `snapshot` | Export live AWS state for a desired policy scope. | Yes |
@@ -63,8 +64,8 @@ python -m pip install "lfguard[aws]"
 | `1` | A CI gate failed, such as `audit --fail-on-findings` or `plan --fail-on-changes`. |
 | `2` | CLI usage, file format, validation, or runtime configuration error. |
 
-Report files and GitHub summaries are written before `audit --fail-on-findings`
-or `plan --fail-on-changes` return exit code `1`.
+Report files and GitHub summaries are written before `lint --fail-on-findings`,
+`audit --fail-on-findings`, or `plan --fail-on-changes` return exit code `1`.
 
 See [`report-formats.md`](report-formats.md) for JSON and Markdown payload
 examples for audit, plan, and apply reports.
@@ -154,6 +155,34 @@ lfguard validate \
   --current-snapshot snapshots/prod-current.json \
   --output-file artifacts/lfguard-validate.txt
 ```
+
+## `lint`
+
+Lint desired policy for semantic issues that parse-time validation cannot catch:
+
+```bash
+lfguard lint --desired policy/desired.json
+```
+
+`lint` does not call AWS. It catches undefined LF-Tag keys and values used in
+resource tag assignments and LF-Tag policy expressions. It also warns when a
+desired policy is empty.
+
+CI-friendly lint gate:
+
+```bash
+lfguard lint \
+  --desired policy/desired.json \
+  --output json \
+  --output-file artifacts/lfguard-lint.json \
+  --fail-on-findings
+```
+
+Useful options:
+
+- `--fail-on-findings`: return exit code `1` when any lint finding exists.
+- `--fail-on-severity any|error`: severity that triggers `--fail-on-findings`.
+  Use `error` when warnings should stay visible but should not fail CI.
 
 ## `audit`
 

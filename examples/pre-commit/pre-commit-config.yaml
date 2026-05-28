@@ -7,3 +7,9 @@ repos:
         language: system
         pass_filenames: false
         files: ^policy/desired\.(json|ya?ml)$
+      - id: lfguard-lint-desired
+        name: lfguard lint desired policy
+        entry: lfguard lint --desired policy/desired.yaml --fail-on-findings
+        language: system
+        pass_filenames: false
+        files: ^policy/desired\.(json|ya?ml)$

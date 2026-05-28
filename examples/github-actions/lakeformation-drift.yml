@@ -33,6 +33,9 @@ jobs:
       - name: Validate desired policy
         run: lfguard validate --desired policy/desired.yaml
 
+      - name: Lint desired policy
+        run: lfguard lint --desired policy/desired.yaml --fail-on-findings
+
       - name: Capture current state
         run: |
           lfguard snapshot \

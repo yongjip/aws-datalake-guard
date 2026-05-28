@@ -13,8 +13,9 @@ bespoke boto3 scripts.
 
 ## Is it safe to run against production?
 
-The audit, validate, plan, sample, schema, and doctor commands do not mutate AWS
-state. `lfguard apply` is also a dry run unless `--execute` is provided.
+The audit, validate, lint, plan, sample, schema, and doctor commands do not
+mutate AWS state. `lfguard apply` is also a dry run unless `--execute` is
+provided.
 
 By default, plans are additive only. Permission revokes, resource tag removals,
 and LF-Tag value removals require explicit allow flags, so destructive changes
@@ -60,7 +61,7 @@ for live inventory and apply.
 
 Start offline with `lfguard sample`, then generate a desired-state file with
 `lfguard init`. Once the shape matches your policy model, add a CI job that runs
-`lfguard validate`, `lfguard audit`, or `lfguard plan --fail-on-changes` against
-a current-state snapshot.
+`lfguard validate`, `lfguard lint --fail-on-findings`, `lfguard audit`, or
+`lfguard plan --fail-on-changes` against a current-state snapshot.
 
 Use live `lfguard apply --execute` only after reviewing the generated plan.

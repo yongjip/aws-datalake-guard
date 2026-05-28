@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from lakeformation_guard import CurrentState, DesiredState, __version__, audit
+from lakeformation_guard import CurrentState, DesiredState, __version__, audit, lint_desired
 from lakeformation_guard.aws import ApplyResult
 from lakeformation_guard.cli import main
 
@@ -619,6 +619,7 @@ class AuditCliTests(unittest.TestCase):
             self.assertEqual(len(desired.lf_tags), 2)
             self.assertEqual(len(current.lf_tags), 2)
             self.assertIn("lfguard Demo", sample_readme)
+            self.assertIn("lfguard lint --desired desired.json", sample_readme)
             self.assertIn("lfguard audit --desired desired.json", sample_readme)
             self.assertIn("lfguard plan --desired desired.json", sample_readme)
 
@@ -832,6 +833,104 @@ class AuditCliTests(unittest.TestCase):
             report = output_path.read_text(encoding="utf-8")
             self.assertIn("Desired state is valid", report)
             self.assertIn("Current snapshot is valid", report)
+
+    def test_lint_desired_api_reports_undefined_tag_references(self):
+        desired = DesiredState.from_dict(
+            {
+                "lf_tags": {"sensitivity": ["internal"]},
+                "resource_tags": [
+                    {
+                        "resource": {"kind": "table", "database": "analytics", "table": "orders"},
+                        "tags": {"domain": ["sales"], "sensitivity": ["restricted"]},
+                    }
+                ],
+                "grants": [
+                    {
+                        "principal": "role",
+                        "resource": {
+                            "kind": "lf_tag_policy",
+                            "resource_type": "TABLE",
+                            "expression": {"domain": ["sales"], "sensitivity": ["external"]},
+                        },
+                        "permissions": ["SELECT"],
+                    }
+                ],
+            }
+        )
+
+        findings = lint_desired(desired)
+
+        self.assertEqual(
+            [finding.code for finding in findings],
+            [
+                "RESOURCE_TAG_KEY_UNDEFINED",
+                "RESOURCE_TAG_VALUE_UNDEFINED",
+                "LF_TAG_POLICY_KEY_UNDEFINED",
+                "LF_TAG_POLICY_VALUE_UNDEFINED",
+            ],
+        )
+
+    def test_cli_lint_outputs_json_and_can_fail_on_findings(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            desired_path = tmp_path / "desired.json"
+            desired_path.write_text(
+                json.dumps(
+                    {
+                        "lf_tags": {"sensitivity": ["internal"]},
+                        "resource_tags": [
+                            {
+                                "resource": {"kind": "table", "database": "analytics", "table": "orders"},
+                                "tags": {"sensitivity": ["restricted"]},
+                            }
+                        ],
+                        "grants": [],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                exit_code = main(
+                    [
+                        "lint",
+                        "--desired",
+                        str(desired_path),
+                        "--output",
+                        "json",
+                        "--fail-on-findings",
+                    ]
+                )
+
+            payload = json.loads(stdout.getvalue())
+            self.assertEqual(exit_code, 1)
+            self.assertEqual(payload["summary"], {"total": 1, "errors": 1, "warnings": 0})
+            self.assertEqual(payload["findings"][0]["code"], "RESOURCE_TAG_VALUE_UNDEFINED")
+
+    def test_cli_lint_warning_only_can_pass_when_failing_on_errors(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            desired_path = Path(tmp) / "desired.json"
+            desired_path.write_text(json.dumps({"lf_tags": {}, "resource_tags": [], "grants": []}), encoding="utf-8")
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                exit_code = main(
+                    [
+                        "lint",
+                        "--desired",
+                        str(desired_path),
+                        "--output",
+                        "markdown",
+                        "--fail-on-findings",
+                        "--fail-on-severity",
+                        "error",
+                    ]
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertIn("### lfguard lint", stdout.getvalue())
+            self.assertIn("DESIRED_STATE_EMPTY", stdout.getvalue())
 
     def test_cli_version_outputs_short_command_name(self):
         stdout = io.StringIO()

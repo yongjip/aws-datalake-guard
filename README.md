@@ -31,6 +31,7 @@ values, are omitted unless the matching allow flag is set.
 - Reviewable plans before touching production Lake Formation state.
 - Conservative defaults that avoid accidental revokes and tag removals.
 - Works offline from snapshots, which makes CI drift checks possible.
+- Lints desired policy for undefined LF-Tag keys and values before AWS access.
 - Keeps the Python API dependency-light while isolating boto3 in the AWS adapter.
 - Produces text, JSON, Markdown, and SARIF output suitable for pull request
   comments, release checks, code scanning, and platform automation.
@@ -215,6 +216,12 @@ lfguard validate \
   --current-snapshot current.json
 ```
 
+Lint the desired policy for undefined LF-Tag references:
+
+```bash
+lfguard lint --desired desired.json --fail-on-findings
+```
+
 Save a validation report:
 
 ```bash
@@ -377,7 +384,7 @@ lfguard plan \
 ## Python API
 
 ```python
-from lakeformation_guard import DesiredState, CurrentState, PlanOptions, audit, plan
+from lakeformation_guard import DesiredState, CurrentState, PlanOptions, audit, lint_desired, plan
 
 desired = DesiredState.from_dict({
     "lf_tags": {"sensitivity": ["public", "internal"]},
@@ -391,8 +398,12 @@ desired = DesiredState.from_dict({
 })
 
 current = CurrentState.empty()
+lint_findings = lint_desired(desired)
 findings = audit(desired, current)
 change_plan = plan(desired, current, PlanOptions())
+
+for finding in lint_findings:
+    print(finding.code, finding.message)
 
 for finding in findings:
     print(finding.code, finding.message)
