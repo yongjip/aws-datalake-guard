@@ -52,6 +52,7 @@ class PackageMetadataTests(unittest.TestCase):
             "CLI Reference",
             "Report Formats",
             "Safety Model",
+            "Positioning",
             "State Format",
             "AWS API Coverage",
             "FAQ",

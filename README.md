@@ -407,6 +407,8 @@ PyPI publisher settings.
   shapes for audits, plans, applies, and CI artifacts.
 - [`docs/safety-model.md`](docs/safety-model.md): conservative defaults,
   destructive-change flags, apply behavior, and production patterns.
+- [`docs/positioning.md`](docs/positioning.md): where `lfguard` fits next to
+  Terraform, CloudFormation, CDK, raw boto3, and console workflows.
 - [`docs/state-format.md`](docs/state-format.md): desired/current state file
   shape with examples for each supported resource kind.
 - [`docs/schema.json`](docs/schema.json): JSON Schema for desired/current state

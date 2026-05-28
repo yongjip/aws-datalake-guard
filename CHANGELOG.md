@@ -24,6 +24,8 @@
 - Adds an examples guide and PyPI metadata links for first-run discoverability.
 - Adds a report-format guide for audit, plan, apply, and CI artifacts.
 - Adds a safety model guide for conservative defaults and destructive changes.
+- Adds a positioning guide for how `lfguard` fits with infrastructure tools,
+  raw boto3, and console workflows.
 - Adds a `sample` command for generating a runnable offline demo after install,
   including a local README with copy-paste commands.
 - Adds a state-format guide with examples for each supported resource kind.
