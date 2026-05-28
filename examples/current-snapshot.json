@@ -1,0 +1,19 @@
+{
+  "lf_tags": {
+    "sensitivity": ["public"],
+    "domain": ["sales", "finance"]
+  },
+  "resource_tags": [
+    {
+      "resource": {
+        "kind": "table",
+        "database": "analytics",
+        "table": "orders"
+      },
+      "tags": {
+        "domain": ["sales"]
+      }
+    }
+  ],
+  "grants": []
+}
