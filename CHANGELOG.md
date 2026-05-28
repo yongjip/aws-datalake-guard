@@ -39,6 +39,7 @@
 - Adds an architecture guide for package boundaries, data flow, and AWS adapter
   responsibilities.
 - Adds a roadmap with near-term priorities, evaluation questions, and non-goals.
+- Adds publish-ready release notes for the first public PyPI release.
 - Adds a `sample` command for generating a runnable offline demo after install,
   including a local README with copy-paste commands.
 - Adds JSON, YAML, and combined output formats for generated sample demos.

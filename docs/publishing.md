@@ -20,6 +20,9 @@ Then publish a GitHub release for a tag such as `v0.1.0`. The release workflow
 builds the artifacts, checks them, smoke-tests the built wheel through an
 installed `lfguard` CLI, and uploads to PyPI through OIDC.
 
+Use [`release-notes/v0.1.0.md`](release-notes/v0.1.0.md) as the GitHub release
+body for the first public release.
+
 ## Manual Fallback
 
 If Trusted Publishing is not configured yet, build locally and upload with a

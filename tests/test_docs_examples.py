@@ -13,7 +13,7 @@ class DocumentationExampleTests(unittest.TestCase):
             root / "README.md",
             *sorted((root / ".github").glob("*.md")),
             *sorted((root / ".github" / "ISSUE_TEMPLATE").glob("*.md")),
-            *sorted((root / "docs").glob("*.md")),
+            *sorted((root / "docs").rglob("*.md")),
             *sorted((root / "examples").glob("*.md")),
             root / "CHANGELOG.md",
             root / "CONTRIBUTING.md",
