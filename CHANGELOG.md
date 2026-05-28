@@ -28,6 +28,7 @@
   including a local README with copy-paste commands.
 - Adds a state-format guide with examples for each supported resource kind.
 - Adds an AWS API coverage guide for live inventory and apply calls.
+- Adds an FAQ for safety, scope, credentials, and adoption questions.
 - Adds CI and release workflow smoke tests for the built wheel.
 - Adds docs tests for internal Markdown links.
 - Adds package metadata tests for version, console scripts, and project URLs.

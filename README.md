@@ -413,6 +413,8 @@ PyPI publisher settings.
   files.
 - [`docs/aws-api-coverage.md`](docs/aws-api-coverage.md): exact boto3 Lake
   Formation calls used for live inventory and apply.
+- [`docs/faq.md`](docs/faq.md): answers for safety, AWS credentials, scope, and
+  adoption questions.
 - [`docs/github-actions.md`](docs/github-actions.md): a copy-paste drift check
   workflow using GitHub OIDC, job summaries, and uploaded report artifacts.
 - [`docs/aws-permissions.md`](docs/aws-permissions.md): suggested minimum IAM
