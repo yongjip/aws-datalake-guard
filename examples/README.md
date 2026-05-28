@@ -32,7 +32,7 @@ lfguard audit \
 Expected summary:
 
 ```text
-Findings: 3.
+Findings: 3 total, 3 error(s), 0 warning(s).
 ```
 
 To use the audit in CI and save evidence for review:

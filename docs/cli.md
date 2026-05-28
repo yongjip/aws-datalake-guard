@@ -140,6 +140,8 @@ lfguard audit \
 
 Useful options:
 
+- Audit text, JSON, and Markdown output include a severity summary. JSON reports
+  expose `summary.total`, `summary.errors`, and `summary.warnings`.
 - `--fail-on-findings`: return exit code `1` when any finding exists.
 - `--fail-on-severity any|error`: severity that triggers `--fail-on-findings`.
   The default is `any`, which preserves strict drift gates. Use `error` when

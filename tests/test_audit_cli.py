@@ -294,8 +294,47 @@ class AuditCliTests(unittest.TestCase):
 
             self.assertEqual(exit_code, 0)
             self.assertIn("### lfguard audit", stdout.getvalue())
+            self.assertIn("- Total findings: 3", stdout.getvalue())
+            self.assertIn("- Error findings: 2", stdout.getvalue())
+            self.assertIn("- Warning findings: 1", stdout.getvalue())
             self.assertIn("| Severity | Code | Target | Message |", stdout.getvalue())
             self.assertIn("LF_TAG_VALUES_MISSING", stdout.getvalue())
+
+    def test_cli_audit_outputs_json_summary(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            desired_path = tmp_path / "desired.json"
+            current_path = tmp_path / "current.json"
+            desired_path.write_text(
+                json.dumps({"lf_tags": {"sensitivity": ["internal"]}, "grants": []}),
+                encoding="utf-8",
+            )
+            current_path.write_text(
+                json.dumps({"lf_tags": {"sensitivity": ["restricted"]}, "grants": []}),
+                encoding="utf-8",
+            )
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                exit_code = main(
+                    [
+                        "audit",
+                        "--desired",
+                        str(desired_path),
+                        "--current-snapshot",
+                        str(current_path),
+                        "--output",
+                        "json",
+                    ]
+                )
+
+            payload = json.loads(stdout.getvalue())
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(payload["summary"], {"total": 2, "errors": 1, "warnings": 1})
+            self.assertEqual(
+                [finding["code"] for finding in payload["findings"]],
+                ["LF_TAG_VALUES_MISSING", "LF_TAG_VALUES_UNMANAGED"],
+            )
 
     def test_cli_audit_writes_report_output_file_before_failing_on_findings(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -327,7 +366,7 @@ class AuditCliTests(unittest.TestCase):
             self.assertEqual(exit_code, 1)
             self.assertEqual(stdout.getvalue(), "")
             report = output_path.read_text(encoding="utf-8")
-            self.assertIn("Findings:", report)
+            self.assertIn("Findings: 2 total, 1 error(s), 1 warning(s).", report)
             self.assertIn("LF_TAG_VALUES_MISSING", report)
 
     def test_cli_audit_default_fail_on_findings_fails_for_warning_only_drift(self):

@@ -244,6 +244,9 @@ lfguard audit \
   --output-file artifacts/lfguard-audit.json
 ```
 
+Audit JSON includes `summary.total`, `summary.errors`, and `summary.warnings`
+so CI jobs can show drift counts without parsing individual findings.
+
 Use Markdown output for pull request comments or GitHub Actions summaries:
 
 ```bash

@@ -540,14 +540,20 @@ def _print_findings(findings: Iterable[AuditFinding], output: str) -> None:
 
 def _render_findings(findings: Iterable[AuditFinding], output: str) -> str:
     findings = tuple(findings)
+    summary = _finding_summary(findings)
     if output == "json":
-        return dumps_json({"findings": [finding.to_dict() for finding in findings]})
+        return dumps_json(
+            {
+                "summary": summary,
+                "findings": [finding.to_dict() for finding in findings],
+            }
+        )
     if output == "markdown":
         return _render_findings_markdown(findings)
     lines = []
     if not findings:
         return "No findings.\n"
-    lines.append("Findings: {}.".format(len(findings)))
+    lines.append(_format_finding_summary(summary))
     for finding in findings:
         lines.append(
             "- [{severity}] {code} {target}: {message}".format(
@@ -566,13 +572,16 @@ def _print_findings_markdown(findings: Iterable[AuditFinding]) -> None:
 
 def _render_findings_markdown(findings: Iterable[AuditFinding]) -> str:
     findings = tuple(findings)
+    summary = _finding_summary(findings)
     lines = ["### lfguard audit", ""]
     if not findings:
         lines.append("No findings.")
         return "\n".join(lines) + "\n"
     lines.extend(
         [
-            "Findings: {}.".format(len(findings)),
+            "- Total findings: {total}".format(**summary),
+            "- Error findings: {errors}".format(**summary),
+            "- Warning findings: {warnings}".format(**summary),
             "",
             "| Severity | Code | Target | Message |",
             "| --- | --- | --- | --- |",
@@ -588,6 +597,19 @@ def _render_findings_markdown(findings: Iterable[AuditFinding]) -> str:
             )
         )
     return "\n".join(lines) + "\n"
+
+
+def _finding_summary(findings: Iterable[AuditFinding]) -> dict:
+    findings = tuple(findings)
+    return {
+        "total": len(findings),
+        "errors": sum(1 for finding in findings if finding.severity == "error"),
+        "warnings": sum(1 for finding in findings if finding.severity == "warning"),
+    }
+
+
+def _format_finding_summary(summary: dict) -> str:
+    return "Findings: {total} total, {errors} error(s), {warnings} warning(s).".format(**summary)
 
 
 def _should_fail_on_findings(findings: Iterable[AuditFinding], fail_on_severity: str) -> bool:

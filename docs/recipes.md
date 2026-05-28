@@ -101,6 +101,9 @@ lfguard audit \
   --output-file artifacts/lfguard-audit.json
 ```
 
+The JSON report includes `summary.total`, `summary.errors`, and
+`summary.warnings` for compact CI annotations and dashboards.
+
 ## Write a GitHub Summary
 
 Use `--github-summary` when a workflow should leave a readable summary in the

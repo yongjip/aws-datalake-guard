@@ -10,6 +10,7 @@
 - Adds a `--github-summary` option for GitHub Actions job summaries.
 - Adds a `--fail-on-changes` option for CI plan gates.
 - Adds a `--fail-on-severity` option for error-only audit gates.
+- Adds severity summaries to audit text, JSON, and Markdown reports.
 - Adds `--output-file` report capture for audit, plan, and apply workflows.
 - Adds `--output-file` diagnostics capture for doctor and validate workflows.
 - Documents GitHub Actions report artifact uploads and preserves CI build artifacts.
