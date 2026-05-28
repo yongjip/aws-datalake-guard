@@ -53,7 +53,7 @@ jobs:
             --desired policy/desired.yaml \
             --current-snapshot snapshots/prod-current.json \
             --fail-on-findings \
-            --output markdown >> "$GITHUB_STEP_SUMMARY"
+            --github-summary
 ```
 
 For pull requests from forks, avoid granting AWS credentials directly to the PR

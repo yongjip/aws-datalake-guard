@@ -193,6 +193,16 @@ lfguard plan \
   --output markdown
 ```
 
+In GitHub Actions, append the Markdown report directly to the job summary:
+
+```bash
+lfguard audit \
+  --desired desired.json \
+  --current-snapshot current.json \
+  --fail-on-findings \
+  --github-summary
+```
+
 Export a live current-state snapshot for the resources and principals referenced
 by a desired-state file:
 

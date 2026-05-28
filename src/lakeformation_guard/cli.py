@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
+import io
 import os
 import platform
 import sys
@@ -71,6 +73,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_state_args(audit_parser)
     _add_aws_args(audit_parser)
     _add_output_arg(audit_parser, markdown=True)
+    _add_github_summary_arg(audit_parser)
     audit_parser.add_argument("--fail-on-findings", action="store_true", help="Exit with status 1 when any finding is present.")
 
     validate_parser = subparsers.add_parser("validate", help="Validate desired/current state files without AWS access.")
@@ -81,6 +84,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_state_args(plan_parser)
     _add_aws_args(plan_parser)
     _add_output_arg(plan_parser, markdown=True)
+    _add_github_summary_arg(plan_parser)
     _add_plan_option_args(plan_parser)
 
     snapshot_parser = subparsers.add_parser("snapshot", help="Export live AWS state for a desired policy scope.")
@@ -92,6 +96,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_state_args(apply_parser)
     _add_aws_args(apply_parser)
     _add_output_arg(apply_parser, markdown=True)
+    _add_github_summary_arg(apply_parser)
     _add_plan_option_args(apply_parser)
     apply_parser.add_argument("--execute", action="store_true", help="Apply the computed plan. Defaults to dry-run.")
 
@@ -102,6 +107,8 @@ def _cmd_audit(args: argparse.Namespace) -> int:
     desired = load_desired(args.desired)
     current = _load_current(args, desired)
     findings = audit(desired, current)
+    if args.github_summary:
+        _append_github_summary(_render_findings_markdown(findings))
     _print_findings(findings, args.output)
     if findings and args.fail_on_findings:
         return 1
@@ -112,6 +119,8 @@ def _cmd_plan(args: argparse.Namespace) -> int:
     desired = load_desired(args.desired)
     current = _load_current(args, desired)
     change_plan = plan(desired, current, _plan_options(args))
+    if args.github_summary:
+        _append_github_summary(_render_plan_markdown(change_plan))
     _print_plan(change_plan, args.output)
     return 0
 
@@ -193,6 +202,8 @@ def _cmd_apply(args: argparse.Namespace) -> int:
     current = _load_current(args, desired)
     change_plan = plan(desired, current, _plan_options(args))
     if not args.execute:
+        if args.github_summary:
+            _append_github_summary(_render_plan_markdown(change_plan, prefix="Dry run: no changes applied."))
         _print_plan(change_plan, args.output, prefix="Dry run: no changes applied.")
         return 0
 
@@ -202,10 +213,13 @@ def _cmd_apply(args: argparse.Namespace) -> int:
         dry_run=False,
         allow_destructive=_has_destructive_allowance(args),
     )
+    applied_count = sum(1 for result in results if result.applied)
+    if args.github_summary:
+        _append_github_summary(_render_plan_markdown(change_plan, prefix="Applied {} change(s).".format(applied_count)))
     if args.output == "json":
         print(dumps_json({"plan": change_plan.to_dict(), "results": [result.to_dict() for result in results]}), end="")
     else:
-        print("Applied {} change(s).".format(sum(1 for result in results if result.applied)))
+        print("Applied {} change(s).".format(applied_count))
         _print_plan(change_plan, args.output)
     return 0
 
@@ -227,6 +241,14 @@ def _add_aws_args(parser: argparse.ArgumentParser) -> None:
 def _add_output_arg(parser: argparse.ArgumentParser, *, markdown: bool = False) -> None:
     choices = ("text", "json", "markdown") if markdown else ("text", "json")
     parser.add_argument("--output", choices=choices, default="text", help="Output format.")
+
+
+def _add_github_summary_arg(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--github-summary",
+        action="store_true",
+        help="Append a Markdown report to $GITHUB_STEP_SUMMARY.",
+    )
 
 
 def _add_plan_option_args(parser: argparse.ArgumentParser) -> None:
@@ -439,6 +461,13 @@ def _print_plan_markdown(change_plan: Plan, *, prefix: Optional[str] = None) -> 
         )
 
 
+def _render_plan_markdown(change_plan: Plan, *, prefix: Optional[str] = None) -> str:
+    buffer = io.StringIO()
+    with contextlib.redirect_stdout(buffer):
+        _print_plan_markdown(change_plan, prefix=prefix)
+    return buffer.getvalue()
+
+
 def _print_findings(findings: Iterable[AuditFinding], output: str) -> None:
     findings = tuple(findings)
     if output == "json":
@@ -480,6 +509,27 @@ def _print_findings_markdown(findings: Iterable[AuditFinding]) -> None:
                 message=_markdown_cell(finding.message),
             )
         )
+
+
+def _render_findings_markdown(findings: Iterable[AuditFinding]) -> str:
+    buffer = io.StringIO()
+    with contextlib.redirect_stdout(buffer):
+        _print_findings_markdown(findings)
+    return buffer.getvalue()
+
+
+def _append_github_summary(markdown_text: str) -> None:
+    summary_file = os.environ.get("GITHUB_STEP_SUMMARY")
+    if not summary_file:
+        raise RuntimeError("GITHUB_STEP_SUMMARY is not set; use --output markdown or run inside GitHub Actions")
+    try:
+        with Path(summary_file).open("a", encoding="utf-8") as handle:
+            handle.write(markdown_text)
+            if not markdown_text.endswith("\n"):
+                handle.write("\n")
+            handle.write("\n")
+    except OSError as exc:
+        raise RuntimeError("Could not write GitHub summary to {}: {}".format(summary_file, exc)) from exc
 
 
 def _markdown_cell(value: object) -> str:

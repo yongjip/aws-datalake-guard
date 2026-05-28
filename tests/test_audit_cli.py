@@ -1,6 +1,7 @@
 import contextlib
 import io
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -174,6 +175,67 @@ class AuditCliTests(unittest.TestCase):
             self.assertIn("### lfguard audit", stdout.getvalue())
             self.assertIn("| Severity | Code | Target | Message |", stdout.getvalue())
             self.assertIn("LF_TAG_VALUES_MISSING", stdout.getvalue())
+
+    def test_cli_audit_writes_github_summary_before_failing_on_findings(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            desired_path = tmp_path / "desired.json"
+            current_path = tmp_path / "current.json"
+            summary_path = tmp_path / "summary.md"
+            desired_path.write_text(
+                json.dumps({"lf_tags": {"sensitivity": ["internal"]}, "grants": []}),
+                encoding="utf-8",
+            )
+            current_path.write_text(json.dumps({"lf_tags": {"sensitivity": ["restricted"]}, "grants": []}), encoding="utf-8")
+
+            stdout = io.StringIO()
+            with patch.dict(os.environ, {"GITHUB_STEP_SUMMARY": str(summary_path)}):
+                with contextlib.redirect_stdout(stdout):
+                    exit_code = main(
+                        [
+                            "audit",
+                            "--desired",
+                            str(desired_path),
+                            "--current-snapshot",
+                            str(current_path),
+                            "--fail-on-findings",
+                            "--github-summary",
+                        ]
+                    )
+
+            self.assertEqual(exit_code, 1)
+            self.assertIn("Findings:", stdout.getvalue())
+            summary = summary_path.read_text(encoding="utf-8")
+            self.assertIn("### lfguard audit", summary)
+            self.assertIn("LF_TAG_VALUES_MISSING", summary)
+
+    def test_cli_plan_github_summary_requires_environment_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            desired_path = tmp_path / "desired.json"
+            current_path = tmp_path / "current.json"
+            desired_path.write_text(
+                json.dumps({"lf_tags": {"sensitivity": ["internal"]}, "grants": []}),
+                encoding="utf-8",
+            )
+            current_path.write_text(json.dumps({"lf_tags": {}, "grants": []}), encoding="utf-8")
+
+            stderr = io.StringIO()
+            with patch.dict(os.environ, {}, clear=True):
+                with contextlib.redirect_stderr(stderr):
+                    exit_code = main(
+                        [
+                            "plan",
+                            "--desired",
+                            str(desired_path),
+                            "--current-snapshot",
+                            str(current_path),
+                            "--github-summary",
+                        ]
+                    )
+
+            self.assertEqual(exit_code, 2)
+            self.assertIn("GITHUB_STEP_SUMMARY is not set", stderr.getvalue())
 
     def test_cli_init_writes_valid_starter_policy(self):
         with tempfile.TemporaryDirectory() as tmp:

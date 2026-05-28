@@ -59,14 +59,15 @@ policy or AWS state is reconciled.
 
 ## Write a GitHub Summary
 
-Use Markdown output when a workflow should leave a readable summary:
+Use `--github-summary` when a workflow should leave a readable summary in the
+GitHub Actions run:
 
 ```bash
 lfguard audit \
   --desired policy/desired.json \
   --current-snapshot snapshots/prod-current.json \
   --fail-on-findings \
-  --output markdown >> "$GITHUB_STEP_SUMMARY"
+  --github-summary
 ```
 
 ## Capture a Live Snapshot
