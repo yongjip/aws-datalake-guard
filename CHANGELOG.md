@@ -9,6 +9,7 @@
 - Adds an offline install check for optional AWS and YAML integrations.
 - Adds a `--github-summary` option for GitHub Actions job summaries.
 - Adds a `--fail-on-changes` option for CI plan gates.
+- Adds `--output-file` report capture for audit and plan workflows.
 - Adds YAML starter policy generation and a YAML example policy.
 - Ships a JSON Schema for desired/current state files.
 - Adds importable planning and audit APIs under `lakeformation_guard`.

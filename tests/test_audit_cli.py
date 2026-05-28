@@ -162,6 +162,74 @@ class AuditCliTests(unittest.TestCase):
             self.assertEqual(exit_code, 1)
             self.assertIn("Plan: 1 change(s), 1 safe, 0 destructive.", stdout.getvalue())
 
+    def test_cli_plan_writes_report_output_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            desired_path = tmp_path / "desired.json"
+            current_path = tmp_path / "current.json"
+            output_path = tmp_path / "artifacts" / "lfguard-plan.md"
+            desired_path.write_text(
+                json.dumps({"lf_tags": {"sensitivity": ["internal"]}, "grants": []}),
+                encoding="utf-8",
+            )
+            current_path.write_text(json.dumps({"lf_tags": {}, "grants": []}), encoding="utf-8")
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                exit_code = main(
+                    [
+                        "plan",
+                        "--desired",
+                        str(desired_path),
+                        "--current-snapshot",
+                        str(current_path),
+                        "--output",
+                        "markdown",
+                        "--output-file",
+                        str(output_path),
+                    ]
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stdout.getvalue(), "")
+            report = output_path.read_text(encoding="utf-8")
+            self.assertIn("### lfguard plan", report)
+            self.assertIn("| safe | lf_tag.create | lf_tag:sensitivity | LF-Tag is missing |", report)
+
+    def test_cli_plan_writes_json_report_before_failing_on_changes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            desired_path = tmp_path / "desired.json"
+            current_path = tmp_path / "current.json"
+            output_path = tmp_path / "plan.json"
+            desired_path.write_text(
+                json.dumps({"lf_tags": {"sensitivity": ["internal"]}, "grants": []}),
+                encoding="utf-8",
+            )
+            current_path.write_text(json.dumps({"lf_tags": {}, "grants": []}), encoding="utf-8")
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                exit_code = main(
+                    [
+                        "plan",
+                        "--desired",
+                        str(desired_path),
+                        "--current-snapshot",
+                        str(current_path),
+                        "--output",
+                        "json",
+                        "--output-file",
+                        str(output_path),
+                        "--fail-on-changes",
+                    ]
+                )
+
+            self.assertEqual(exit_code, 1)
+            self.assertEqual(stdout.getvalue(), "")
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["summary"], {"total": 1, "safe": 1, "destructive": 0})
+
     def test_cli_plan_fail_on_changes_passes_when_plan_is_empty(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
@@ -227,6 +295,39 @@ class AuditCliTests(unittest.TestCase):
             self.assertIn("### lfguard audit", stdout.getvalue())
             self.assertIn("| Severity | Code | Target | Message |", stdout.getvalue())
             self.assertIn("LF_TAG_VALUES_MISSING", stdout.getvalue())
+
+    def test_cli_audit_writes_report_output_file_before_failing_on_findings(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            desired_path = tmp_path / "desired.json"
+            current_path = tmp_path / "current.json"
+            output_path = tmp_path / "artifacts" / "lfguard-audit.txt"
+            desired_path.write_text(
+                json.dumps({"lf_tags": {"sensitivity": ["internal"]}, "grants": []}),
+                encoding="utf-8",
+            )
+            current_path.write_text(json.dumps({"lf_tags": {"sensitivity": ["restricted"]}, "grants": []}), encoding="utf-8")
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                exit_code = main(
+                    [
+                        "audit",
+                        "--desired",
+                        str(desired_path),
+                        "--current-snapshot",
+                        str(current_path),
+                        "--output-file",
+                        str(output_path),
+                        "--fail-on-findings",
+                    ]
+                )
+
+            self.assertEqual(exit_code, 1)
+            self.assertEqual(stdout.getvalue(), "")
+            report = output_path.read_text(encoding="utf-8")
+            self.assertIn("Findings:", report)
+            self.assertIn("LF_TAG_VALUES_MISSING", report)
 
     def test_cli_audit_writes_github_summary_before_failing_on_findings(self):
         with tempfile.TemporaryDirectory() as tmp:

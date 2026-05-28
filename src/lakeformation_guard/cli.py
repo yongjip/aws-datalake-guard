@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import contextlib
-import io
 import os
 import platform
 import sys
@@ -78,6 +76,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_state_args(audit_parser)
     _add_aws_args(audit_parser)
     _add_output_arg(audit_parser, markdown=True)
+    _add_report_output_file_arg(audit_parser)
     _add_github_summary_arg(audit_parser)
     audit_parser.add_argument("--fail-on-findings", action="store_true", help="Exit with status 1 when any finding is present.")
 
@@ -89,6 +88,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_state_args(plan_parser)
     _add_aws_args(plan_parser)
     _add_output_arg(plan_parser, markdown=True)
+    _add_report_output_file_arg(plan_parser)
     _add_github_summary_arg(plan_parser)
     _add_plan_option_args(plan_parser)
     plan_parser.add_argument("--fail-on-changes", action="store_true", help="Exit with status 1 when the plan contains any change.")
@@ -115,7 +115,7 @@ def _cmd_audit(args: argparse.Namespace) -> int:
     findings = audit(desired, current)
     if args.github_summary:
         _append_github_summary(_render_findings_markdown(findings))
-    _print_findings(findings, args.output)
+    _emit_output(_render_findings(findings, args.output), args.output_file, label="audit report")
     if findings and args.fail_on_findings:
         return 1
     return 0
@@ -127,7 +127,7 @@ def _cmd_plan(args: argparse.Namespace) -> int:
     change_plan = plan(desired, current, _plan_options(args))
     if args.github_summary:
         _append_github_summary(_render_plan_markdown(change_plan))
-    _print_plan(change_plan, args.output)
+    _emit_output(_render_plan(change_plan, args.output), args.output_file, label="plan report")
     if change_plan.changes and args.fail_on_changes:
         return 1
     return 0
@@ -250,6 +250,10 @@ def _add_aws_args(parser: argparse.ArgumentParser) -> None:
 def _add_output_arg(parser: argparse.ArgumentParser, *, markdown: bool = False) -> None:
     choices = ("text", "json", "markdown") if markdown else ("text", "json")
     parser.add_argument("--output", choices=choices, default="text", help="Output format.")
+
+
+def _add_report_output_file_arg(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--output-file", help="Write command output to this file instead of stdout.")
 
 
 def _add_github_summary_arg(parser: argparse.ArgumentParser) -> None:
@@ -427,55 +431,66 @@ def _starter_desired_state() -> dict:
 
 
 def _print_plan(change_plan: Plan, output: str, *, prefix: Optional[str] = None) -> None:
+    print(_render_plan(change_plan, output, prefix=prefix), end="")
+
+
+def _render_plan(change_plan: Plan, output: str, *, prefix: Optional[str] = None) -> str:
     if output == "json":
         data: Any = change_plan.to_dict()
         if prefix:
             data = {"message": prefix, "plan": data}
-        print(dumps_json(data), end="")
-        return
+        return dumps_json(data)
     if output == "markdown":
-        _print_plan_markdown(change_plan, prefix=prefix)
-        return
+        return _render_plan_markdown(change_plan, prefix=prefix)
+    lines = []
     if prefix:
-        print(prefix)
+        lines.append(prefix)
     summary = change_plan.summary()
-    print(
+    lines.append(
         "Plan: {total} change(s), {safe} safe, {destructive} destructive.".format(
             **summary
         )
     )
     if not change_plan.changes:
-        return
+        return "\n".join(lines) + "\n"
     for change in change_plan.changes:
         marker = "destructive" if change.destructive else "safe"
-        print("- [{marker}] {action} {target}: {reason}".format(
-            marker=marker,
-            action=change.action,
-            target=change.target,
-            reason=change.reason,
-        ))
+        lines.append(
+            "- [{marker}] {action} {target}: {reason}".format(
+                marker=marker,
+                action=change.action,
+                target=change.target,
+                reason=change.reason,
+            )
+        )
+    return "\n".join(lines) + "\n"
 
 
 def _print_plan_markdown(change_plan: Plan, *, prefix: Optional[str] = None) -> None:
+    print(_render_plan_markdown(change_plan, prefix=prefix), end="")
+
+
+def _render_plan_markdown(change_plan: Plan, *, prefix: Optional[str] = None) -> str:
+    lines = []
     if prefix:
-        print(prefix)
-        print()
+        lines.extend([prefix, ""])
     summary = change_plan.summary()
-    print("### lfguard plan")
-    print()
-    print("- Total changes: {total}".format(**summary))
-    print("- Safe changes: {safe}".format(**summary))
-    print("- Destructive changes: {destructive}".format(**summary))
+    lines.extend(
+        [
+            "### lfguard plan",
+            "",
+            "- Total changes: {total}".format(**summary),
+            "- Safe changes: {safe}".format(**summary),
+            "- Destructive changes: {destructive}".format(**summary),
+        ]
+    )
     if not change_plan.changes:
-        print()
-        print("No changes.")
-        return
-    print()
-    print("| Safety | Action | Target | Reason |")
-    print("| --- | --- | --- | --- |")
+        lines.extend(["", "No changes."])
+        return "\n".join(lines) + "\n"
+    lines.extend(["", "| Safety | Action | Target | Reason |", "| --- | --- | --- | --- |"])
     for change in change_plan.changes:
         marker = "destructive" if change.destructive else "safe"
-        print(
+        lines.append(
             "| {safety} | {action} | {target} | {reason} |".format(
                 safety=_markdown_cell(marker),
                 action=_markdown_cell(change.action),
@@ -483,49 +498,55 @@ def _print_plan_markdown(change_plan: Plan, *, prefix: Optional[str] = None) -> 
                 reason=_markdown_cell(change.reason),
             )
         )
-
-
-def _render_plan_markdown(change_plan: Plan, *, prefix: Optional[str] = None) -> str:
-    buffer = io.StringIO()
-    with contextlib.redirect_stdout(buffer):
-        _print_plan_markdown(change_plan, prefix=prefix)
-    return buffer.getvalue()
+    return "\n".join(lines) + "\n"
 
 
 def _print_findings(findings: Iterable[AuditFinding], output: str) -> None:
+    print(_render_findings(findings, output), end="")
+
+
+def _render_findings(findings: Iterable[AuditFinding], output: str) -> str:
     findings = tuple(findings)
     if output == "json":
-        print(dumps_json({"findings": [finding.to_dict() for finding in findings]}), end="")
-        return
+        return dumps_json({"findings": [finding.to_dict() for finding in findings]})
     if output == "markdown":
-        _print_findings_markdown(findings)
-        return
+        return _render_findings_markdown(findings)
+    lines = []
     if not findings:
-        print("No findings.")
-        return
-    print("Findings: {}.".format(len(findings)))
+        return "No findings.\n"
+    lines.append("Findings: {}.".format(len(findings)))
     for finding in findings:
-        print("- [{severity}] {code} {target}: {message}".format(
-            severity=finding.severity,
-            code=finding.code,
-            target=finding.target,
-            message=finding.message,
-        ))
+        lines.append(
+            "- [{severity}] {code} {target}: {message}".format(
+                severity=finding.severity,
+                code=finding.code,
+                target=finding.target,
+                message=finding.message,
+            )
+        )
+    return "\n".join(lines) + "\n"
 
 
 def _print_findings_markdown(findings: Iterable[AuditFinding]) -> None:
+    print(_render_findings_markdown(findings), end="")
+
+
+def _render_findings_markdown(findings: Iterable[AuditFinding]) -> str:
     findings = tuple(findings)
-    print("### lfguard audit")
-    print()
+    lines = ["### lfguard audit", ""]
     if not findings:
-        print("No findings.")
-        return
-    print("Findings: {}.".format(len(findings)))
-    print()
-    print("| Severity | Code | Target | Message |")
-    print("| --- | --- | --- | --- |")
+        lines.append("No findings.")
+        return "\n".join(lines) + "\n"
+    lines.extend(
+        [
+            "Findings: {}.".format(len(findings)),
+            "",
+            "| Severity | Code | Target | Message |",
+            "| --- | --- | --- | --- |",
+        ]
+    )
     for finding in findings:
-        print(
+        lines.append(
             "| {severity} | {code} | {target} | {message} |".format(
                 severity=_markdown_cell(finding.severity),
                 code=_markdown_cell(finding.code),
@@ -533,13 +554,22 @@ def _print_findings_markdown(findings: Iterable[AuditFinding]) -> None:
                 message=_markdown_cell(finding.message),
             )
         )
+    return "\n".join(lines) + "\n"
 
 
-def _render_findings_markdown(findings: Iterable[AuditFinding]) -> str:
-    buffer = io.StringIO()
-    with contextlib.redirect_stdout(buffer):
-        _print_findings_markdown(findings)
-    return buffer.getvalue()
+def _emit_output(text: str, output_file: Optional[str], *, label: str) -> None:
+    if output_file:
+        _write_text_file(Path(output_file), text, label)
+        return
+    print(text, end="")
+
+
+def _write_text_file(output_path: Path, text: str, label: str) -> None:
+    try:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(text, encoding="utf-8")
+    except OSError as exc:
+        raise RuntimeError("Could not write {} to {}: {}".format(label, output_path, exc)) from exc
 
 
 def _append_github_summary(markdown_text: str) -> None:

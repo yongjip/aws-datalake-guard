@@ -190,6 +190,16 @@ lfguard plan \
   --fail-on-changes
 ```
 
+Save a reviewable plan report as a CI artifact:
+
+```bash
+lfguard plan \
+  --desired desired.json \
+  --current-snapshot current.json \
+  --output markdown \
+  --output-file artifacts/lfguard-plan.md
+```
+
 Audit and fail the command when drift is found:
 
 ```bash
@@ -197,6 +207,16 @@ lfguard audit \
   --desired desired.json \
   --current-snapshot current.json \
   --fail-on-findings
+```
+
+Write a machine-readable audit report:
+
+```bash
+lfguard audit \
+  --desired desired.json \
+  --current-snapshot current.json \
+  --output json \
+  --output-file artifacts/lfguard-audit.json
 ```
 
 Use Markdown output for pull request comments or GitHub Actions summaries:
