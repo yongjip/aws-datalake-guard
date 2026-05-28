@@ -222,6 +222,15 @@ lfguard bootstrap \
   --aws-region ap-northeast-2
 ```
 
+Include CODEOWNERS and a pull request checklist for policy review:
+
+```bash
+lfguard bootstrap \
+  --output-dir lfguard-policy \
+  --include-review-template \
+  --policy-owner @your-org/data-platform
+```
+
 Create a starter desired-state file:
 
 ```bash

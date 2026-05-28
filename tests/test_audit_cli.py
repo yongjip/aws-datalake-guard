@@ -721,6 +721,41 @@ class AuditCliTests(unittest.TestCase):
             self.assertIn("iam/lfguard-read-only.json", readme)
             self.assertIn("upload SARIF", readme)
 
+    def test_cli_bootstrap_can_include_review_template(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output_dir = Path(tmp) / "policy-repo"
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                exit_code = main(
+                    [
+                        "bootstrap",
+                        "--output-dir",
+                        str(output_dir),
+                        "--include-review-template",
+                        "--policy-owner",
+                        "@example/data-platform",
+                    ]
+                )
+
+            codeowners_path = output_dir / ".github" / "CODEOWNERS"
+            pr_template_path = output_dir / ".github" / "pull_request_template.md"
+            readme_path = output_dir / "README.md"
+            codeowners = codeowners_path.read_text(encoding="utf-8")
+            pr_template = pr_template_path.read_text(encoding="utf-8")
+            readme = readme_path.read_text(encoding="utf-8")
+
+            self.assertEqual(exit_code, 0)
+            self.assertIn(str(codeowners_path), stdout.getvalue())
+            self.assertIn(str(pr_template_path), stdout.getvalue())
+            self.assertIn("policy/* @example/data-platform", codeowners)
+            self.assertIn(".github/workflows/lfguard-*.yml @example/data-platform", codeowners)
+            self.assertIn("# Lake Formation Policy Change", pr_template)
+            self.assertIn("lfguard check --desired policy/desired.json", pr_template)
+            self.assertIn("--allow-permission-revokes", pr_template)
+            self.assertIn(".github/CODEOWNERS", readme)
+            self.assertIn("@example/data-platform", readme)
+
     def test_cli_bootstrap_can_write_yaml_layout(self):
         with tempfile.TemporaryDirectory() as tmp:
             output_dir = Path(tmp) / "policy-repo"
@@ -785,6 +820,29 @@ class AuditCliTests(unittest.TestCase):
             self.assertIn('python -m pip install "lfguard[aws,yaml]"', workflow)
             self.assertIn("lfguard doctor --require aws --require yaml", workflow)
             self.assertIn("--desired policy/desired.yaml", workflow)
+
+    def test_cli_bootstrap_review_template_uses_yaml_policy_path_for_yaml_layout(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output_dir = Path(tmp) / "policy-repo"
+
+            with contextlib.redirect_stdout(io.StringIO()):
+                exit_code = main(
+                    [
+                        "bootstrap",
+                        "--output-dir",
+                        str(output_dir),
+                        "--format",
+                        "yaml",
+                        "--include-review-template",
+                    ]
+                )
+
+            pr_template = (output_dir / ".github" / "pull_request_template.md").read_text(encoding="utf-8")
+
+            self.assertEqual(exit_code, 0)
+            self.assertIn("lfguard check --desired policy/desired.yaml", pr_template)
+            self.assertIn("lfguard summary --desired policy/desired.yaml", pr_template)
+            self.assertNotIn("policy/desired.json", pr_template)
 
     def test_cli_bootstrap_refuses_to_overwrite_without_force(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1049,6 +1107,7 @@ class AuditCliTests(unittest.TestCase):
         self.assertIn("complete -F _lfguard_complete lfguard aws-lakeformation-guard", script)
         self.assertIn("bootstrap", script)
         self.assertIn("--include-code-scanning", script)
+        self.assertIn("--include-review-template", script)
         self.assertIn("--include-glue-read", script)
 
     def test_cli_completion_outputs_zsh_script(self):

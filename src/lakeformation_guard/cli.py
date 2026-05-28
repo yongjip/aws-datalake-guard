@@ -128,6 +128,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="Also write a GitHub Code Scanning workflow that uploads lfguard SARIF findings.",
     )
     bootstrap_parser.add_argument(
+        "--include-review-template",
+        action="store_true",
+        help="Also write CODEOWNERS and a pull request checklist for policy review.",
+    )
+    bootstrap_parser.add_argument(
+        "--policy-owner",
+        default="@your-org/data-platform",
+        help="CODEOWNERS owner for generated policy review files.",
+    )
+    bootstrap_parser.add_argument(
         "--aws-role-arn",
         default="arn:aws:iam::111122223333:role/LakeFormationReadOnly",
         help="AWS role ARN for generated live drift or Code Scanning workflows.",
@@ -366,6 +376,8 @@ def _cmd_bootstrap(args: argparse.Namespace) -> int:
         args.template,
         include_live_drift=args.include_live_drift,
         include_code_scanning=args.include_code_scanning,
+        include_review_template=args.include_review_template,
+        policy_owner=args.policy_owner,
         aws_role_arn=args.aws_role_arn,
         aws_region=args.aws_region,
     )
@@ -397,6 +409,10 @@ def _cmd_bootstrap(args: argparse.Namespace) -> int:
     if args.include_code_scanning:
         print("\nCode Scanning workflow:")
         print("  {}/.github/workflows/lfguard-code-scanning.yml".format(output_dir))
+    if args.include_review_template:
+        print("\nReview files:")
+        print("  {}/.github/CODEOWNERS".format(output_dir))
+        print("  {}/.github/pull_request_template.md".format(output_dir))
     print("\nSee {}/README.md for rollout steps.".format(output_dir))
     return 0
 
@@ -836,6 +852,8 @@ _COMPLETION_OPTIONS = {
         "--template",
         "--include-live-drift",
         "--include-code-scanning",
+        "--include-review-template",
+        "--policy-owner",
         "--aws-role-arn",
         "--aws-region",
         "--force",
@@ -1325,6 +1343,8 @@ def _bootstrap_files(
     *,
     include_live_drift: bool = False,
     include_code_scanning: bool = False,
+    include_review_template: bool = False,
+    policy_owner: str = "@your-org/data-platform",
     aws_role_arn: str = "arn:aws:iam::111122223333:role/LakeFormationReadOnly",
     aws_region: str = "us-east-1",
 ) -> dict:
@@ -1344,6 +1364,8 @@ def _bootstrap_files(
             needs_yaml_extra=needs_yaml_extra,
             include_live_drift=include_live_drift,
             include_code_scanning=include_code_scanning,
+            include_review_template=include_review_template,
+            policy_owner=policy_owner,
             aws_role_arn=aws_role_arn,
             aws_region=aws_region,
         ),
@@ -1364,6 +1386,9 @@ def _bootstrap_files(
             aws_region=aws_region,
         )
         files["iam/lfguard-read-only.json"] = dumps_json(_iam_policy_template("read-only"))
+    if include_review_template:
+        files[".github/CODEOWNERS"] = _bootstrap_codeowners(policy_owner)
+        files[".github/pull_request_template.md"] = _bootstrap_pull_request_template(desired_path)
     return files
 
 
@@ -1679,12 +1704,45 @@ jobs:
     )
 
 
+def _bootstrap_codeowners(policy_owner: str) -> str:
+    return """# Replace this placeholder with the GitHub team or user that owns Lake Formation policy.
+policy/* {policy_owner}
+snapshots/* {policy_owner}
+iam/* {policy_owner}
+.github/workflows/lfguard-*.yml {policy_owner}
+""".format(
+        policy_owner=policy_owner,
+    )
+
+
+def _bootstrap_pull_request_template(desired_path: str) -> str:
+    return """# Lake Formation Policy Change
+
+## Review Checklist
+
+- [ ] `lfguard check --desired {desired_path} --fail-on-findings` passes.
+- [ ] `lfguard summary --desired {desired_path} --output markdown` was reviewed for changed LF-Tag keys, resources, principals, and permissions.
+- [ ] If a current-state snapshot is included, `lfguard audit` findings are understood and intentional.
+- [ ] If a plan is included, every `lfguard plan` change was reviewed before apply.
+- [ ] Destructive flags such as `--allow-permission-revokes`, `--allow-resource-tag-removals`, and `--allow-lf-tag-value-removals` are used only in a separately approved workflow.
+- [ ] Live AWS roles and IAM policies are scoped to the intended read or apply operation.
+
+## Notes
+
+Describe the policy intent, expected drift, and rollout or rollback plan.
+""".format(
+        desired_path=desired_path,
+    )
+
+
 def _bootstrap_readme(
     desired_path: str,
     *,
     needs_yaml_extra: bool,
     include_live_drift: bool = False,
     include_code_scanning: bool = False,
+    include_review_template: bool = False,
+    policy_owner: str = "@your-org/data-platform",
     aws_role_arn: str = "arn:aws:iam::111122223333:role/LakeFormationReadOnly",
     aws_region: str = "us-east-1",
 ) -> str:
@@ -1737,6 +1795,23 @@ repository can upload SARIF before enabling the workflow.
         )
     if include_live_drift and include_code_scanning:
         live_drift_next_step = "Review the generated live workflows and attach least-privilege read permissions."
+    review_files = ""
+    review_steps = ""
+    if include_review_template:
+        review_files = """- `.github/CODEOWNERS`: policy ownership rules for `{policy_owner}`.
+- `.github/pull_request_template.md`: Lake Formation policy review checklist.
+""".format(
+            policy_owner=policy_owner,
+        )
+        review_steps = """
+## Review Governance
+
+Replace `{policy_owner}` in `.github/CODEOWNERS` with the GitHub team or user
+that owns Lake Formation policy review. Keep the pull request checklist aligned
+with the CI workflows your repository enables.
+""".format(
+            policy_owner=policy_owner,
+        )
     return """# lfguard Policy Bootstrap
 
 This directory is a starter Lake Formation policy-as-code layout generated by
@@ -1750,6 +1825,7 @@ This directory is a starter Lake Formation policy-as-code layout generated by
   artifact workflow.
 - `.pre-commit-config.yaml`: local check hook.
 {workflow_files}
+{review_files}
 
 ## First Checks
 
@@ -1759,17 +1835,21 @@ lfguard check --desired {desired_path} --fail-on-findings
 lfguard summary --desired {desired_path}
 ```
 {workflow_steps}
+{review_steps}
 
 ## Next Steps
 
 1. Replace example LF-Tag keys, values, resources, and principals with sanitized
    names from your environment.
-2. Commit the policy file, schema, workflow, and pre-commit configuration.
+2. Commit the policy file, schema, workflow, pre-commit configuration, and any
+   generated review files.
 3. {live_drift_next_step}
 4. Review every `lfguard plan` before using `lfguard apply --execute`.
 """.format(
         desired_path=desired_path,
         install_command=install_command,
+        review_files=review_files,
+        review_steps=review_steps,
         workflow_files=workflow_files,
         workflow_steps=workflow_steps,
         live_drift_next_step=live_drift_next_step,

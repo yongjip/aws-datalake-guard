@@ -90,9 +90,14 @@ lfguard bootstrap \
   --output-dir lfguard-policy \
   --include-live-drift \
   --include-code-scanning \
+  --include-review-template \
+  --policy-owner @your-org/data-platform \
   --aws-role-arn arn:aws:iam::111122223333:role/LakeFormationReadOnly \
   --aws-region us-east-1
 ```
+
+Replace the generated CODEOWNERS placeholder with the team that owns Lake
+Formation policy review before enabling branch protection.
 
 Use check when a workflow should validate local state files and lint desired
 policy before enforcing drift:

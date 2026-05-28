@@ -15,6 +15,8 @@ lfguard bootstrap \
   --output-dir lfguard-policy \
   --include-live-drift \
   --include-code-scanning \
+  --include-review-template \
+  --policy-owner @your-org/data-platform \
   --aws-role-arn arn:aws:iam::111122223333:role/LakeFormationReadOnly \
   --aws-region ap-northeast-2
 ```

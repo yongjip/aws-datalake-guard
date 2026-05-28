@@ -134,17 +134,22 @@ Useful options:
 - `--include-code-scanning`: also write
   `.github/workflows/lfguard-code-scanning.yml` for GitHub Code Scanning SARIF
   upload. This also writes `iam/lfguard-read-only.json`.
+- `--include-review-template`: also write `.github/CODEOWNERS` and
+  `.github/pull_request_template.md` for Lake Formation policy review.
+- `--policy-owner OWNER`: CODEOWNERS owner for generated policy review files.
 - `--aws-role-arn ARN`: role ARN to place in generated live AWS workflows.
 - `--aws-region REGION`: AWS region to place in generated live AWS workflows.
 - `--force`: overwrite existing bootstrap files.
 
-Live drift and Code Scanning bootstrap example:
+Live drift, Code Scanning, and review bootstrap example:
 
 ```bash
 lfguard bootstrap \
   --output-dir lfguard-policy \
   --include-live-drift \
   --include-code-scanning \
+  --include-review-template \
+  --policy-owner @your-org/data-platform \
   --aws-role-arn arn:aws:iam::111122223333:role/LakeFormationReadOnly \
   --aws-region ap-northeast-2
 ```

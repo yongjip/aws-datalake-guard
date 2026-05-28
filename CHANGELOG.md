@@ -81,6 +81,8 @@
   GitHub OIDC drift checks and starter read-only IAM policy JSON.
 - Adds an optional `bootstrap --include-code-scanning` scaffold for uploading
   `lfguard` lint and drift SARIF findings to GitHub Code Scanning.
+- Adds an optional `bootstrap --include-review-template` scaffold for CODEOWNERS
+  and Lake Formation policy pull request checklists.
 - Adds docs tests for internal Markdown links.
 - Adds package metadata tests for version, console scripts, and project URLs.
 - Modernizes the build backend requirement for current setuptools releases.
