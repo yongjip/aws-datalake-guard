@@ -22,6 +22,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         parser.print_help(sys.stderr)
         return 2
     try:
+        if args.command == "init":
+            return _cmd_init(args)
         if args.command == "plan":
             return _cmd_plan(args)
         if args.command == "audit":
@@ -46,6 +48,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--version", action="version", version="lfguard {}".format(__version__))
     subparsers = parser.add_subparsers(dest="command")
+
+    init_parser = subparsers.add_parser("init", help="Generate a starter desired-state policy file.")
+    init_parser.add_argument("--output-file", help="Write starter policy JSON to this file instead of stdout.")
+    init_parser.add_argument("--force", action="store_true", help="Overwrite the output file if it already exists.")
 
     audit_parser = subparsers.add_parser("audit", help="Report drift between desired and current Lake Formation state.")
     _add_state_args(audit_parser)
@@ -93,6 +99,22 @@ def _cmd_plan(args: argparse.Namespace) -> int:
     current = _load_current(args, desired)
     change_plan = plan(desired, current, _plan_options(args))
     _print_plan(change_plan, args.output)
+    return 0
+
+
+def _cmd_init(args: argparse.Namespace) -> int:
+    text = dumps_json(_starter_desired_state())
+    if args.output_file:
+        output_path = Path(args.output_file)
+        if output_path.exists() and not args.force:
+            raise RuntimeError("{} already exists; pass --force to overwrite it".format(output_path))
+        try:
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(text, encoding="utf-8")
+        except OSError as exc:
+            raise RuntimeError("Could not write starter policy to {}: {}".format(output_path, exc)) from exc
+    else:
+        print(text, end="")
     return 0
 
 
@@ -218,6 +240,42 @@ def _format_validation_summary(prefix: str, summary: dict) -> str:
         "{prefix}: {lf_tags} LF-Tag definition(s), "
         "{resource_tags} resource tag assignment(s), {grants} grant(s)."
     ).format(prefix=prefix, **summary)
+
+
+def _starter_desired_state() -> dict:
+    return {
+        "lf_tags": {
+            "domain": ["analytics"],
+            "sensitivity": ["public", "internal", "restricted"],
+        },
+        "resource_tags": [
+            {
+                "resource": {
+                    "kind": "table",
+                    "database": "analytics",
+                    "table": "orders",
+                },
+                "tags": {
+                    "domain": ["analytics"],
+                    "sensitivity": ["internal"],
+                },
+            }
+        ],
+        "grants": [
+            {
+                "principal": "arn:aws:iam::111122223333:role/Analyst",
+                "resource": {
+                    "kind": "lf_tag_policy",
+                    "resource_type": "TABLE",
+                    "expression": {
+                        "domain": ["analytics"],
+                        "sensitivity": ["public", "internal"],
+                    },
+                },
+                "permissions": ["DESCRIBE", "SELECT"],
+            }
+        ],
+    }
 
 
 def _print_plan(change_plan: Plan, output: str, *, prefix: Optional[str] = None) -> None:

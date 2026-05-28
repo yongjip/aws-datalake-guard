@@ -3,6 +3,15 @@
 These workflows are intended to keep Lake Formation changes reviewable and
 conservative.
 
+## Start a Policy File
+
+Generate a starter desired-state policy, then replace the example principal,
+database, table, and tag values with your environment's names.
+
+```bash
+lfguard init --output-file policy/desired.json
+```
+
 ## Validate Policy Files
 
 Run this in pre-commit hooks or CI before comparing against AWS state:

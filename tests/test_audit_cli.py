@@ -93,6 +93,32 @@ class AuditCliTests(unittest.TestCase):
                 ["lf_tag.create", "grant.add_permissions"],
             )
 
+    def test_cli_init_writes_valid_starter_policy(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output_path = Path(tmp) / "policy" / "desired.json"
+
+            exit_code = main(["init", "--output-file", str(output_path)])
+
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+            desired = DesiredState.from_dict(payload)
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(len(desired.lf_tags), 2)
+            self.assertEqual(len(desired.resource_tags), 1)
+            self.assertEqual(len(desired.grants), 1)
+
+    def test_cli_init_refuses_to_overwrite_without_force(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output_path = Path(tmp) / "desired.json"
+            output_path.write_text("{}", encoding="utf-8")
+
+            stderr = io.StringIO()
+            with contextlib.redirect_stderr(stderr):
+                exit_code = main(["init", "--output-file", str(output_path)])
+
+            self.assertEqual(exit_code, 2)
+            self.assertIn("already exists", stderr.getvalue())
+            self.assertEqual(output_path.read_text(encoding="utf-8"), "{}")
+
     def test_cli_validate_outputs_json_summary(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)

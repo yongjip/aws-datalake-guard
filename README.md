@@ -135,6 +135,12 @@ lfguard --version
 lfguard --help
 ```
 
+Create a starter desired-state file:
+
+```bash
+lfguard init --output-file policy/desired.json
+```
+
 Validate policy files without AWS credentials:
 
 ```bash
