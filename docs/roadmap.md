@@ -29,7 +29,7 @@ The most useful next improvements are:
   reviews.
 - More adapter tests around AWS pagination, not-found handling, and destructive
   apply paths.
-- Optional convenience commands for common repository bootstrap workflows.
+- Additional convenience commands for common repository maintenance workflows.
 
 ## Evaluation Priorities
 

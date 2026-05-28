@@ -24,6 +24,24 @@ Fail early when a workflow needs optional AWS or YAML integrations:
 lfguard doctor --require aws --require yaml
 ```
 
+## Bootstrap a Policy Repository
+
+Generate a starter policy-as-code layout when you want schema, CI, and
+pre-commit files in one step:
+
+```bash
+lfguard bootstrap --output-dir lfguard-policy
+```
+
+Use YAML when that matches the repository convention:
+
+```bash
+lfguard bootstrap --output-dir lfguard-policy --format yaml
+```
+
+The generated workflow is offline: it validates, lints, summarizes, and uploads
+report artifacts for the desired policy without calling AWS.
+
 Generate a starter desired-state policy, then replace the example principal,
 database, table, and tag values with your environment's names.
 

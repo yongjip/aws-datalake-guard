@@ -154,6 +154,13 @@ lfguard --version
 lfguard --help
 ```
 
+Bootstrap a policy repository layout with a starter desired policy, JSON Schema,
+GitHub Actions workflow, pre-commit config, and rollout README:
+
+```bash
+lfguard bootstrap --output-dir lfguard-policy
+```
+
 Create a starter desired-state file:
 
 ```bash

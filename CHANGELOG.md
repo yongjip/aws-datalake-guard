@@ -4,7 +4,8 @@
 
 - Initial release of `lfguard`.
 - Adds the `lfguard` CLI with `init`, `schema`, `validate`, `lint`, `audit`,
-  `plan`, `sample`, `doctor`, `snapshot`, and conservative `apply` commands.
+  `plan`, `sample`, `bootstrap`, `doctor`, `snapshot`, and conservative
+  `apply` commands.
 - Adds desired-policy lint checks for undefined LF-Tag keys and values.
 - Adds policy summary reports for compact review of desired and current state.
 - Adds text, JSON, and Markdown output for reviewable audit and plan workflows.
@@ -50,6 +51,8 @@
   including a local README with copy-paste commands.
 - Adds `sample --include-ci` for generating an offline GitHub Actions demo
   workflow alongside the sample files.
+- Adds a `bootstrap` command for generating a starter policy repository layout
+  with schema, CI, pre-commit, and rollout README files.
 - Adds JSON, YAML, and combined output formats for generated sample demos.
 - Adds a state-format guide with examples for each supported resource kind.
 - Adds an AWS API coverage guide for live inventory and apply calls.

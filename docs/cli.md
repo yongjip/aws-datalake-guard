@@ -13,6 +13,7 @@ Use `lfguard --help` or `lfguard <command> --help` for argparse-generated help.
 | Command | Purpose | AWS calls |
 | --- | --- | --- |
 | `init` | Generate a starter desired-state policy file. | No |
+| `bootstrap` | Create a starter policy repository layout with CI and pre-commit files. | No |
 | `sample` | Generate offline demo desired/current state files. | No |
 | `schema` | Emit the JSON Schema for desired/current state files. | No |
 | `doctor` | Check the local install and optional extras. | No |
@@ -95,6 +96,30 @@ stdout defaults to JSON.
 ```bash
 lfguard init --template blank --output-file policy/desired.json
 ```
+
+## `bootstrap`
+
+Create a starter policy repository layout:
+
+```bash
+lfguard bootstrap --output-dir lfguard-policy
+```
+
+The generated layout includes:
+
+- `policy/desired.json`: starter desired LF-Tag and grant policy.
+- `policy/lfguard.schema.json`: JSON Schema for editor integration.
+- `.github/workflows/lfguard-policy.yml`: offline validation, lint, summary,
+  and artifact workflow.
+- `.pre-commit-config.yaml`: local validate and lint hooks.
+- `README.md`: rollout steps and first commands.
+
+Useful options:
+
+- `--format json|yaml`: choose the desired policy file format. YAML workflows
+  install `lfguard[yaml]`.
+- `--template data-domain|blank`: choose the starter policy.
+- `--force`: overwrite existing bootstrap files.
 
 ## `sample`
 

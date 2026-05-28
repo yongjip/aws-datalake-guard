@@ -32,6 +32,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             return _cmd_init(args)
         if args.command == "sample":
             return _cmd_sample(args)
+        if args.command == "bootstrap":
+            return _cmd_bootstrap(args)
         if args.command == "schema":
             return _cmd_schema(args)
         if args.command == "doctor":
@@ -94,6 +96,22 @@ def build_parser() -> argparse.ArgumentParser:
         help="Also write a starter GitHub Actions workflow for the offline demo.",
     )
     sample_parser.add_argument("--force", action="store_true", help="Overwrite sample files if they already exist.")
+
+    bootstrap_parser = subparsers.add_parser("bootstrap", help="Create a starter lfguard policy repository layout.")
+    bootstrap_parser.add_argument("--output-dir", required=True, help="Directory to write the starter layout into.")
+    bootstrap_parser.add_argument(
+        "--format",
+        choices=("json", "yaml"),
+        default="json",
+        help="Desired policy file format. Defaults to json.",
+    )
+    bootstrap_parser.add_argument(
+        "--template",
+        choices=("data-domain", "blank"),
+        default="data-domain",
+        help="Starter policy template. Defaults to data-domain.",
+    )
+    bootstrap_parser.add_argument("--force", action="store_true", help="Overwrite bootstrap files if they already exist.")
 
     schema_parser = subparsers.add_parser("schema", help="Emit the JSON Schema for desired/current state files.")
     schema_parser.add_argument("--output-file", help="Write schema JSON to this file instead of stdout.")
@@ -269,6 +287,36 @@ def _cmd_sample(args: argparse.Namespace) -> int:
         print("\nGitHub Actions demo workflow:")
         print("  {}/.github/workflows/lfguard-demo.yml".format(output_dir))
     print("\nSee {}/README.md for more commands.".format(output_dir))
+    return 0
+
+
+def _cmd_bootstrap(args: argparse.Namespace) -> int:
+    output_dir = Path(args.output_dir)
+    files = _bootstrap_files(args.format, args.template)
+    existing = [output_dir / name for name in files if (output_dir / name).exists()]
+    if existing and not args.force:
+        raise RuntimeError(
+            "{} already exists; pass --force to overwrite bootstrap files".format(
+                ", ".join(str(path) for path in existing)
+            )
+        )
+    try:
+        output_dir.mkdir(parents=True, exist_ok=True)
+        for name, text in files.items():
+            output_path = output_dir / name
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(text, encoding="utf-8")
+    except OSError as exc:
+        raise RuntimeError("Could not write bootstrap files to {}: {}".format(output_dir, exc)) from exc
+
+    desired_name = _bootstrap_desired_name(args.format)
+    print("Wrote lfguard policy bootstrap to {}.\n".format(output_dir))
+    print("Review and edit:")
+    print("  {}/policy/{}".format(output_dir, desired_name))
+    print("\nRun:")
+    print("  lfguard validate --desired {}/policy/{}".format(output_dir, desired_name))
+    print("  lfguard lint --desired {}/policy/{} --fail-on-findings".format(output_dir, desired_name))
+    print("\nSee {}/README.md for rollout steps.".format(output_dir))
     return 0
 
 
@@ -772,6 +820,153 @@ def _starter_desired_state(template: str = "data-domain") -> dict:
             }
         ],
     }
+
+
+def _bootstrap_files(output_format: str, template: str) -> dict:
+    desired_name = _bootstrap_desired_name(output_format)
+    desired_path = "policy/{}".format(desired_name)
+    needs_yaml_extra = output_format == "yaml"
+    return {
+        desired_path: _dump_starter_desired_state(output_format, template),
+        "policy/lfguard.schema.json": dumps_json(state_json_schema()),
+        ".github/workflows/lfguard-policy.yml": _bootstrap_github_actions_workflow(
+            desired_path,
+            needs_yaml_extra=needs_yaml_extra,
+        ),
+        ".pre-commit-config.yaml": _bootstrap_pre_commit_config(desired_path),
+        "README.md": _bootstrap_readme(desired_path, needs_yaml_extra=needs_yaml_extra),
+    }
+
+
+def _bootstrap_desired_name(output_format: str) -> str:
+    if output_format == "yaml":
+        return "desired.yaml"
+    return "desired.json"
+
+
+def _bootstrap_github_actions_workflow(desired_path: str, *, needs_yaml_extra: bool) -> str:
+    install_target = '"lfguard[yaml]"' if needs_yaml_extra else "lfguard"
+    doctor_command = "lfguard doctor --require yaml" if needs_yaml_extra else "lfguard doctor"
+    return """name: lfguard policy
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "{desired_path}"
+      - "policy/lfguard.schema.json"
+
+permissions:
+  contents: read
+
+jobs:
+  policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install lfguard
+        run: python -m pip install {install_target}
+
+      - name: Check lfguard install
+        run: {doctor_command}
+
+      - name: Validate, lint, and summarize policy
+        run: |
+          mkdir -p artifacts
+
+          lfguard validate \\
+            --desired {desired_path} \\
+            --output-file artifacts/lfguard-validate.txt
+
+          lfguard lint \\
+            --desired {desired_path} \\
+            --output markdown \\
+            --output-file artifacts/lfguard-lint.md \\
+            --fail-on-findings \\
+            --github-summary
+
+          lfguard summary \\
+            --desired {desired_path} \\
+            --output markdown \\
+            --output-file artifacts/lfguard-summary.md \\
+            --github-summary
+
+      - name: Upload lfguard reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lfguard-policy-reports
+          path: artifacts/
+          if-no-files-found: ignore
+""".format(
+        desired_path=desired_path,
+        doctor_command=doctor_command,
+        install_target=install_target,
+    )
+
+
+def _bootstrap_pre_commit_config(desired_path: str) -> str:
+    return """repos:
+  - repo: local
+    hooks:
+      - id: lfguard-validate-desired
+        name: lfguard validate desired policy
+        entry: lfguard validate --desired {desired_path}
+        language: system
+        pass_filenames: false
+        files: ^policy/desired\\.(json|ya?ml)$
+      - id: lfguard-lint-desired
+        name: lfguard lint desired policy
+        entry: lfguard lint --desired {desired_path} --fail-on-findings
+        language: system
+        pass_filenames: false
+        files: ^policy/desired\\.(json|ya?ml)$
+""".format(
+        desired_path=desired_path
+    )
+
+
+def _bootstrap_readme(desired_path: str, *, needs_yaml_extra: bool) -> str:
+    install_command = 'python -m pip install "lfguard[yaml]"' if needs_yaml_extra else "python -m pip install lfguard"
+    return """# lfguard Policy Bootstrap
+
+This directory is a starter Lake Formation policy-as-code layout generated by
+`lfguard bootstrap`.
+
+## Files
+
+- `{desired_path}`: starter desired LF-Tag and grant policy.
+- `policy/lfguard.schema.json`: JSON Schema for editor integration.
+- `.github/workflows/lfguard-policy.yml`: offline CI validation, lint, summary,
+  and report artifact workflow.
+- `.pre-commit-config.yaml`: local validate and lint hooks.
+
+## First Checks
+
+```bash
+{install_command}
+lfguard validate --desired {desired_path}
+lfguard lint --desired {desired_path} --fail-on-findings
+lfguard summary --desired {desired_path}
+```
+
+## Next Steps
+
+1. Replace example LF-Tag keys, values, resources, and principals with sanitized
+   names from your environment.
+2. Commit the policy file, schema, workflow, and pre-commit configuration.
+3. Add a read-only Lake Formation snapshot workflow when you are ready to check
+   live AWS drift.
+4. Review every `lfguard plan` before using `lfguard apply --execute`.
+""".format(
+        desired_path=desired_path,
+        install_command=install_command,
+    )
 
 
 def _sample_desired_state() -> dict:

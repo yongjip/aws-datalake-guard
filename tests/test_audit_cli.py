@@ -598,6 +598,69 @@ class AuditCliTests(unittest.TestCase):
             self.assertIn("already exists", stderr.getvalue())
             self.assertEqual(output_path.read_text(encoding="utf-8"), "{}")
 
+    def test_cli_bootstrap_writes_policy_repo_layout(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output_dir = Path(tmp) / "policy-repo"
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                exit_code = main(["bootstrap", "--output-dir", str(output_dir)])
+
+            desired_path = output_dir / "policy" / "desired.json"
+            schema_path = output_dir / "policy" / "lfguard.schema.json"
+            workflow_path = output_dir / ".github" / "workflows" / "lfguard-policy.yml"
+            pre_commit_path = output_dir / ".pre-commit-config.yaml"
+            readme_path = output_dir / "README.md"
+            desired = DesiredState.from_dict(json.loads(desired_path.read_text(encoding="utf-8")))
+            schema = json.loads(schema_path.read_text(encoding="utf-8"))
+            workflow = workflow_path.read_text(encoding="utf-8")
+            pre_commit = pre_commit_path.read_text(encoding="utf-8")
+            readme = readme_path.read_text(encoding="utf-8")
+
+            self.assertEqual(exit_code, 0)
+            self.assertIn("lfguard policy bootstrap", stdout.getvalue())
+            self.assertEqual(len(desired.lf_tags), 2)
+            self.assertEqual(schema["title"], "lfguard state")
+            self.assertIn("python -m pip install lfguard", workflow)
+            self.assertIn("lfguard validate", workflow)
+            self.assertIn("lfguard lint", workflow)
+            self.assertIn("lfguard summary", workflow)
+            self.assertIn("actions/upload-artifact@v4", workflow)
+            self.assertIn("lfguard validate --desired policy/desired.json", pre_commit)
+            self.assertIn("lfguard Policy Bootstrap", readme)
+
+    def test_cli_bootstrap_can_write_yaml_layout(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output_dir = Path(tmp) / "policy-repo"
+
+            with contextlib.redirect_stdout(io.StringIO()):
+                exit_code = main(["bootstrap", "--output-dir", str(output_dir), "--format", "yaml"])
+
+            workflow = (output_dir / ".github" / "workflows" / "lfguard-policy.yml").read_text(encoding="utf-8")
+            pre_commit = (output_dir / ".pre-commit-config.yaml").read_text(encoding="utf-8")
+            readme = (output_dir / "README.md").read_text(encoding="utf-8")
+
+            self.assertEqual(exit_code, 0)
+            self.assertTrue((output_dir / "policy" / "desired.yaml").exists())
+            self.assertFalse((output_dir / "policy" / "desired.json").exists())
+            self.assertIn('python -m pip install "lfguard[yaml]"', workflow)
+            self.assertIn("lfguard doctor --require yaml", workflow)
+            self.assertIn("lfguard validate --desired policy/desired.yaml", pre_commit)
+            self.assertIn('python -m pip install "lfguard[yaml]"', readme)
+
+    def test_cli_bootstrap_refuses_to_overwrite_without_force(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output_dir = Path(tmp) / "policy-repo"
+
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(main(["bootstrap", "--output-dir", str(output_dir)]), 0)
+            stderr = io.StringIO()
+            with contextlib.redirect_stderr(stderr):
+                exit_code = main(["bootstrap", "--output-dir", str(output_dir)])
+
+            self.assertEqual(exit_code, 2)
+            self.assertIn("already exists", stderr.getvalue())
+
     def test_cli_sample_writes_runnable_offline_demo(self):
         with tempfile.TemporaryDirectory() as tmp:
             output_dir = Path(tmp) / "lfguard-demo"
