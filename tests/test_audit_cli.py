@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from lakeformation_guard import CurrentState, DesiredState, audit
+from lakeformation_guard import CurrentState, DesiredState, __version__, audit
 from lakeformation_guard.aws import ApplyResult
 from lakeformation_guard.cli import main
 
@@ -736,7 +736,7 @@ class AuditCliTests(unittest.TestCase):
                 main(["--version"])
 
         self.assertEqual(raised.exception.code, 0)
-        self.assertEqual(stdout.getvalue().strip(), "lfguard 0.1.0")
+        self.assertEqual(stdout.getvalue().strip(), "lfguard {}".format(__version__))
 
     def test_cli_snapshot_outputs_live_current_state_scope(self):
         with tempfile.TemporaryDirectory() as tmp:
