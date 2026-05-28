@@ -45,6 +45,9 @@
   apply workflows.
 - Adds a report-format guide for audit, plan, apply, and CI artifacts.
 - Adds a safety model guide for conservative defaults and destructive changes.
+- Adds a Lake Formation operating guide covering IAM/Lake Formation interaction,
+  LF-Tag best practices, hybrid access mode, `IAMAllowedPrincipals`, and
+  antipatterns.
 - Adds a positioning guide for how `lfguard` fits with infrastructure tools,
   raw boto3, and console workflows.
 - Calls out README scope limits early so new users can evaluate fit quickly.

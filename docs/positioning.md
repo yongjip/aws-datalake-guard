@@ -29,6 +29,9 @@ its own audit and approval workflow. A common pattern is:
 3. Run `lfguard audit` or `lfguard plan --fail-on-changes` in CI.
 4. Run `lfguard apply` first as a dry run, then with `--execute` after review.
 
+See [`lake-formation-guide.md`](lake-formation-guide.md) for the Lake Formation
+concepts, best practices, and antipatterns that inform this split.
+
 ## Use raw boto3 when
 
 Raw boto3 is appropriate for custom workflows that need full control over every

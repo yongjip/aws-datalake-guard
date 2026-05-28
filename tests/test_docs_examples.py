@@ -102,6 +102,24 @@ class DocumentationExampleTests(unittest.TestCase):
         ):
             self.assertIn(expected, workflow_text)
 
+    def test_lake_formation_guide_covers_operating_model(self):
+        root = Path(__file__).resolve().parents[1]
+        guide_text = (root / "docs" / "lake-formation-guide.md").read_text(encoding="utf-8")
+        readme_text = (root / "README.md").read_text(encoding="utf-8")
+
+        for expected in (
+            "IAMAllowedPrincipals",
+            "hybrid access mode",
+            "Best Practices",
+            "Antipatterns",
+            "Source References",
+            "https://docs.aws.amazon.com/lake-formation/latest/dg/lf-permissions-overview.html",
+            "https://docs.aws.amazon.com/lake-formation/latest/dg/tag-based-access-control.html",
+            "https://docs.aws.amazon.com/lake-formation/latest/dg/lf-tag-considerations.html",
+        ):
+            self.assertIn(expected, guide_text)
+        self.assertIn("docs/lake-formation-guide.md", readme_text)
+
 
 def _is_external_link(target: str) -> bool:
     return target.startswith(("http://", "https://", "mailto:"))

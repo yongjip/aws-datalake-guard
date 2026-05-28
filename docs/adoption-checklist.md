@@ -21,6 +21,12 @@ lfguard plan \
 
 This proves the CLI works without AWS credentials.
 
+Before mapping real access policy, read
+[`lake-formation-guide.md`](lake-formation-guide.md) and confirm the team
+understands the Lake Formation/IAM split, LF-Tag inheritance, `IAMAllowedPrincipals`,
+hybrid access mode, and the difference between routine additive changes and
+destructive maintenance.
+
 For YAML policy repositories, generate a YAML demo after installing the YAML
 extra:
 
@@ -81,26 +87,23 @@ using it to read live AWS state.
 
 ## 5. Add CI Drift Checks
 
-To generate a starter repository layout with an offline policy workflow, a
-scheduled live drift workflow, a Code Scanning SARIF workflow, and a read-only
-IAM policy template, run:
+Start with the smallest workflow that gives reviewers useful signal. To generate
+a starter repository layout with an offline policy workflow, run:
 
 ```bash
-lfguard bootstrap \
-  --output-dir lfguard-policy \
-  --include-live-drift \
-  --include-code-scanning \
-  --include-review-template \
-  --include-editor-config \
-  --policy-owner @your-org/data-platform \
-  --aws-role-arn arn:aws:iam::111122223333:role/LakeFormationReadOnly \
-  --aws-region us-east-1
+lfguard bootstrap --output-dir lfguard-policy
 ```
 
-Replace the generated CODEOWNERS placeholder with the team that owns Lake
-Formation policy review before enabling branch protection.
-Open the generated repository in VS Code to get schema validation from
-`policy/lfguard.schema.json`.
+Add optional scaffolds only when they have an owner and a clear use:
+
+- `--include-live-drift`: scheduled GitHub OIDC drift checks with a read-only
+  AWS role.
+- `--include-code-scanning`: SARIF upload when your repository already uses
+  GitHub Code Scanning dashboards.
+- `--include-review-template --policy-owner @your-org/data-platform`:
+  CODEOWNERS and a Lake Formation policy pull request checklist.
+- `--include-editor-config`: VS Code schema validation from
+  `policy/lfguard.schema.json`.
 
 Use check when a workflow should validate local state files and lint desired
 policy before enforcing drift:

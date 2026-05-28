@@ -66,6 +66,15 @@ desired-state file so drift checks stay focused and reviewable.
 - Keep data access policy as code without writing direct boto3 orchestration for
   every grant and tag assignment.
 
+## Lake Formation operating model
+
+If you are adopting Lake Formation or LF-Tag based access control for the first
+time, start with [`docs/lake-formation-guide.md`](docs/lake-formation-guide.md).
+It explains how IAM, Glue Data Catalog resources, Lake Formation grants,
+LF-Tags, `IAMAllowedPrincipals`, hybrid access mode, and data filters fit
+together, then calls out the small set of best practices and antipatterns that
+shape `lfguard`'s conservative defaults.
+
 ## Install
 
 ```bash
@@ -583,6 +592,9 @@ PyPI publisher settings. The first release notes are in
   workflows.
 - [`docs/adoption-checklist.md`](docs/adoption-checklist.md): step-by-step
   rollout from offline demo to CI and controlled apply.
+- [`docs/lake-formation-guide.md`](docs/lake-formation-guide.md): Lake
+  Formation mental model, LF-Tag best practices, hybrid access notes, and
+  antipatterns.
 - [`docs/report-formats.md`](docs/report-formats.md): JSON and Markdown report
   shapes for audits, plans, applies, and CI artifacts.
 - [`docs/architecture.md`](docs/architecture.md): package boundaries, data
