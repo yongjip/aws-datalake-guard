@@ -475,6 +475,21 @@ class AuditCliTests(unittest.TestCase):
         self.assertIn("Optional dependencies:", stdout.getvalue())
         self.assertIn("No AWS calls were made.", stdout.getvalue())
 
+    def test_cli_doctor_writes_output_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output_path = Path(tmp) / "artifacts" / "doctor.json"
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                exit_code = main(["doctor", "--output", "json", "--output-file", str(output_path)])
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stdout.getvalue(), "")
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertIn("version", payload)
+            self.assertIn("optional_dependencies", payload)
+            self.assertFalse(payload["aws_calls_made"])
+
     def test_cli_validate_outputs_json_summary(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
@@ -526,6 +541,38 @@ class AuditCliTests(unittest.TestCase):
                     "desired": {"grants": 1, "lf_tags": 1, "resource_tags": 1, "valid": True},
                 },
             )
+
+    def test_cli_validate_writes_output_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            desired_path = tmp_path / "desired.json"
+            current_path = tmp_path / "current.json"
+            output_path = tmp_path / "artifacts" / "validate.txt"
+            desired_path.write_text(
+                json.dumps({"lf_tags": {"sensitivity": ["internal"]}, "resource_tags": [], "grants": []}),
+                encoding="utf-8",
+            )
+            current_path.write_text(json.dumps({"lf_tags": {}, "resource_tags": [], "grants": []}), encoding="utf-8")
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                exit_code = main(
+                    [
+                        "validate",
+                        "--desired",
+                        str(desired_path),
+                        "--current-snapshot",
+                        str(current_path),
+                        "--output-file",
+                        str(output_path),
+                    ]
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stdout.getvalue(), "")
+            report = output_path.read_text(encoding="utf-8")
+            self.assertIn("Desired state is valid", report)
+            self.assertIn("Current snapshot is valid", report)
 
     def test_cli_version_outputs_short_command_name(self):
         stdout = io.StringIO()

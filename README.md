@@ -159,6 +159,12 @@ Check whether optional AWS/YAML integrations are installed:
 lfguard doctor --output json
 ```
 
+Save the install check for CI diagnostics:
+
+```bash
+lfguard doctor --output json --output-file artifacts/lfguard-doctor.json
+```
+
 Export the JSON Schema for editor or CI validation:
 
 ```bash
@@ -171,6 +177,15 @@ Validate policy files without AWS credentials:
 lfguard validate \
   --desired desired.json \
   --current-snapshot current.json
+```
+
+Save a validation report:
+
+```bash
+lfguard validate \
+  --desired desired.json \
+  --current-snapshot current.json \
+  --output-file artifacts/lfguard-validate.txt
 ```
 
 Plan against an offline snapshot:

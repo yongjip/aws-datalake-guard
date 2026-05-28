@@ -71,6 +71,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     doctor_parser = subparsers.add_parser("doctor", help="Check local lfguard install and optional integrations.")
     _add_output_arg(doctor_parser)
+    _add_report_output_file_arg(doctor_parser)
 
     audit_parser = subparsers.add_parser("audit", help="Report drift between desired and current Lake Formation state.")
     _add_state_args(audit_parser)
@@ -83,6 +84,7 @@ def build_parser() -> argparse.ArgumentParser:
     validate_parser = subparsers.add_parser("validate", help="Validate desired/current state files without AWS access.")
     _add_state_args(validate_parser)
     _add_output_arg(validate_parser)
+    _add_report_output_file_arg(validate_parser)
 
     plan_parser = subparsers.add_parser("plan", help="Produce a conservative Lake Formation change plan.")
     _add_state_args(plan_parser)
@@ -167,10 +169,7 @@ def _cmd_schema(args: argparse.Namespace) -> int:
 
 def _cmd_doctor(args: argparse.Namespace) -> int:
     report = _doctor_report()
-    if args.output == "json":
-        print(dumps_json(report), end="")
-        return 0
-    _print_doctor(report)
+    _emit_output(_render_doctor(report, args.output), args.output_file, label="doctor report")
     return 0
 
 
@@ -179,15 +178,11 @@ def _cmd_validate(args: argparse.Namespace) -> int:
     current = load_current(args.current_snapshot) if args.current_snapshot else None
     desired_summary = _state_summary(desired)
     current_summary = _state_summary(current) if current else None
-    if args.output == "json":
-        payload: Any = {"desired": {"valid": True, **desired_summary}}
-        if current_summary:
-            payload["current_snapshot"] = {"valid": True, **current_summary}
-        print(dumps_json(payload), end="")
-        return 0
-    print(_format_validation_summary("Desired state is valid", desired_summary))
-    if current_summary:
-        print(_format_validation_summary("Current snapshot is valid", current_summary))
+    _emit_output(
+        _render_validation(desired_summary, current_summary, args.output),
+        args.output_file,
+        label="validation report",
+    )
     return 0
 
 
@@ -382,21 +377,42 @@ def _dependency_status(module_name: str, distribution_name: str, *, extra: str, 
 
 
 def _print_doctor(report: dict) -> None:
-    print("lfguard: {}".format(report["version"]))
-    print("Python: {version} ({executable})".format(**report["python"]))
-    print("Optional dependencies:")
+    print(_render_doctor(report, "text"), end="")
+
+
+def _render_doctor(report: dict, output: str) -> str:
+    if output == "json":
+        return dumps_json(report)
+    lines = [
+        "lfguard: {}".format(report["version"]),
+        "Python: {version} ({executable})".format(**report["python"]),
+        "Optional dependencies:",
+    ]
     for name, status in report["optional_dependencies"].items():
         if status["installed"]:
             suffix = " {}".format(status["version"]) if status["version"] else ""
-            print("- {}: installed{} ({})".format(name, suffix, status["purpose"]))
+            lines.append("- {}: installed{} ({})".format(name, suffix, status["purpose"]))
         else:
-            print("- {}: missing; install lfguard[{}] for {}".format(name, status["extra"], status["purpose"]))
-    print("AWS environment:")
+            lines.append("- {}: missing; install lfguard[{}] for {}".format(name, status["extra"], status["purpose"]))
+    lines.append("AWS environment:")
     aws_env = report["aws_environment"]
-    print("- profile: {}".format(aws_env["profile"] or "not set"))
-    print("- region: {}".format(aws_env["region"] or "not set"))
-    print("- catalog_id: {}".format(aws_env["catalog_id"] or "not set"))
-    print("No AWS calls were made.")
+    lines.append("- profile: {}".format(aws_env["profile"] or "not set"))
+    lines.append("- region: {}".format(aws_env["region"] or "not set"))
+    lines.append("- catalog_id: {}".format(aws_env["catalog_id"] or "not set"))
+    lines.append("No AWS calls were made.")
+    return "\n".join(lines) + "\n"
+
+
+def _render_validation(desired_summary: dict, current_summary: Optional[dict], output: str) -> str:
+    if output == "json":
+        payload: Any = {"desired": {"valid": True, **desired_summary}}
+        if current_summary:
+            payload["current_snapshot"] = {"valid": True, **current_summary}
+        return dumps_json(payload)
+    lines = [_format_validation_summary("Desired state is valid", desired_summary)]
+    if current_summary:
+        lines.append(_format_validation_summary("Current snapshot is valid", current_summary))
+    return "\n".join(lines) + "\n"
 
 
 def _starter_desired_state() -> dict:

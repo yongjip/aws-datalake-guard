@@ -12,6 +12,12 @@ environment variables without making AWS calls:
 lfguard doctor
 ```
 
+Save a JSON diagnostics artifact when debugging CI installs:
+
+```bash
+lfguard doctor --output json --output-file artifacts/lfguard-doctor.json
+```
+
 Generate a starter desired-state policy, then replace the example principal,
 database, table, and tag values with your environment's names.
 
@@ -46,6 +52,15 @@ lfguard validate \
 
 The command does not call AWS. It parses the files, validates the supported
 resource shapes, normalizes permission names, and reports object counts.
+
+To preserve validation evidence in CI:
+
+```bash
+lfguard validate \
+  --desired policy/desired.json \
+  --current-snapshot snapshots/prod-current.json \
+  --output-file artifacts/lfguard-validate.txt
+```
 
 ## Audit in CI
 

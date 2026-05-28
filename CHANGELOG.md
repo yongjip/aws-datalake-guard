@@ -10,6 +10,7 @@
 - Adds a `--github-summary` option for GitHub Actions job summaries.
 - Adds a `--fail-on-changes` option for CI plan gates.
 - Adds `--output-file` report capture for audit, plan, and apply workflows.
+- Adds `--output-file` diagnostics capture for doctor and validate workflows.
 - Documents GitHub Actions report artifact uploads and preserves CI build artifacts.
 - Adds a CLI reference with command semantics, common options, and exit codes.
 - Adds YAML starter policy generation and a YAML example policy.

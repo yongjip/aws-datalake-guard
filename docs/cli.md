@@ -33,7 +33,8 @@ State-aware commands use these options:
 - `--catalog-id ID`: Glue Data Catalog ID.
 - `--output text|json|markdown`: output format where supported.
 - `--output-file PATH`: write the command report to a file instead of stdout
-  where supported.
+  where supported. `doctor`, `validate`, `audit`, `plan`, and `apply` support
+  this for reports; `init`, `schema`, and `snapshot` use it for generated files.
 - `--github-summary`: append a Markdown report to `$GITHUB_STEP_SUMMARY` where
   supported.
 
@@ -93,6 +94,7 @@ environment variables without making AWS calls:
 ```bash
 lfguard doctor
 lfguard doctor --output json
+lfguard doctor --output json --output-file artifacts/lfguard-doctor.json
 ```
 
 ## `validate`
@@ -107,6 +109,13 @@ lfguard validate \
 
 `validate` does not call AWS. Use it in pre-commit hooks or CI before comparing
 against live state.
+
+```bash
+lfguard validate \
+  --desired policy/desired.json \
+  --current-snapshot snapshots/prod-current.json \
+  --output-file artifacts/lfguard-validate.txt
+```
 
 ## `audit`
 
