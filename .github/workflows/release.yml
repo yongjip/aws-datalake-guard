@@ -32,6 +32,36 @@ jobs:
         run: python -m unittest discover -s tests
       - name: Build distributions
         run: python -m build
+      - name: Verify distribution versions
+        run: |
+          version="${RELEASE_TAG#v}"
+          test -f "dist/lfguard-${version}.tar.gz"
+          test -f "dist/lfguard-${version}-py3-none-any.whl"
+          python - <<'PY'
+          import email.parser
+          import os
+          import tarfile
+          import zipfile
+
+          version = os.environ["RELEASE_TAG"].removeprefix("v")
+          wheel_path = "dist/lfguard-{}-py3-none-any.whl".format(version)
+          sdist_path = "dist/lfguard-{}.tar.gz".format(version)
+
+          with zipfile.ZipFile(wheel_path) as wheel:
+              metadata = email.parser.Parser().parsestr(
+                  wheel.read("lfguard-{}.dist-info/METADATA".format(version)).decode()
+              )
+          if metadata["Name"] != "lfguard" or metadata["Version"] != version:
+              raise SystemExit("Wheel metadata does not match release version")
+
+          with tarfile.open(sdist_path) as sdist:
+              pkg_info = sdist.extractfile("lfguard-{}/PKG-INFO".format(version))
+              if pkg_info is None:
+                  raise SystemExit("sdist PKG-INFO is missing")
+              metadata = email.parser.Parser().parsestr(pkg_info.read().decode())
+          if metadata["Name"] != "lfguard" or metadata["Version"] != version:
+              raise SystemExit("sdist metadata does not match release version")
+          PY
       - name: Check distributions
         run: python -m twine check dist/*
       - name: Smoke test built wheel

@@ -75,6 +75,8 @@
 - Verifies the exact PyPI version matching the GitHub release tag.
 - Fails the release workflow early when the GitHub release tag does not match
   package metadata.
+- Verifies release artifact filenames and embedded wheel/sdist metadata before
+  upload.
 - Adds docs tests for internal Markdown links.
 - Adds package metadata tests for version, console scripts, and project URLs.
 - Modernizes the build backend requirement for current setuptools releases.
