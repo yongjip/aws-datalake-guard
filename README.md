@@ -44,6 +44,17 @@ desired-state file so drift checks stay focused and reviewable.
 - Produces text, JSON, Markdown, and SARIF output suitable for pull request
   comments, release checks, code scanning, and platform automation.
 
+## Capabilities at a glance
+
+| Workflow | AWS required | Typical command | Review artifact |
+| --- | --- | --- | --- |
+| Validate and lint local policy files | No | `lfguard check` | Text, JSON, Markdown |
+| Summarize desired and current state | No | `lfguard summary` | Text, JSON, Markdown |
+| Audit drift from a snapshot | No | `lfguard audit --current-snapshot ...` | Text, JSON, Markdown, SARIF |
+| Plan conservative changes from a snapshot | No | `lfguard plan --current-snapshot ...` | Text, JSON, Markdown |
+| Capture scoped live current state | Yes | `lfguard snapshot` | JSON/YAML snapshot |
+| Dry-run or apply reviewed changes | Yes for live state or `--execute` | `lfguard apply` | Text, JSON, Markdown |
+
 ## Common use cases
 
 - Fail a CI check when production Lake Formation state drifts from a reviewed

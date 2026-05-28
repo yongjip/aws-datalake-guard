@@ -46,6 +46,7 @@
 - Adds a positioning guide for how `lfguard` fits with infrastructure tools,
   raw boto3, and console workflows.
 - Calls out README scope limits early so new users can evaluate fit quickly.
+- Adds a README capability matrix for quick PyPI-page evaluation.
 - Adds a troubleshooting guide for common install, AWS, planning, and CI issues.
 - Adds GitHub issue and pull request templates for safer community reports.
 - Adds a copyable GitHub Actions drift-check workflow under `examples/`.
