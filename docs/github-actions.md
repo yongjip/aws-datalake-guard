@@ -49,6 +49,13 @@ jobs:
       - name: Lint desired policy
         run: lfguard lint --desired policy/desired.yaml --fail-on-findings
 
+      - name: Summarize policy
+        run: |
+          lfguard summary \
+            --desired policy/desired.yaml \
+            --output markdown \
+            --output-file artifacts/lfguard-summary.md
+
       - name: Capture current state
         run: |
           lfguard snapshot \

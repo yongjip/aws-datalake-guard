@@ -31,6 +31,7 @@ jobs:
           /tmp/lfguard-wheel-smoke/bin/lfguard --version
           /tmp/lfguard-wheel-smoke/bin/lfguard sample --output-dir /tmp/lfguard-demo
           /tmp/lfguard-wheel-smoke/bin/lfguard lint --desired /tmp/lfguard-demo/desired.json
+          /tmp/lfguard-wheel-smoke/bin/lfguard summary --desired /tmp/lfguard-demo/desired.json --current-snapshot /tmp/lfguard-demo/current-snapshot.json --output markdown
           /tmp/lfguard-wheel-smoke/bin/lfguard plan \
             --desired /tmp/lfguard-demo/desired.json \
             --current-snapshot /tmp/lfguard-demo/current-snapshot.json

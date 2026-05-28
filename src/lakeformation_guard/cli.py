@@ -6,9 +6,10 @@ import argparse
 import os
 import platform
 import sys
+from collections import Counter
 from importlib import metadata, util
 from pathlib import Path
-from typing import Any, Iterable, Optional, Sequence
+from typing import Any, Iterable, Mapping, Optional, Sequence
 
 from ._version import __version__
 from .audit import AuditFinding, audit
@@ -41,6 +42,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             return _cmd_audit(args)
         if args.command == "lint":
             return _cmd_lint(args)
+        if args.command == "summary":
+            return _cmd_summary(args)
         if args.command == "validate":
             return _cmd_validate(args)
         if args.command == "snapshot":
@@ -132,6 +135,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Lint finding severity that triggers --fail-on-findings. Defaults to any finding.",
     )
 
+    summary_parser = subparsers.add_parser("summary", help="Summarize desired and optional current state without AWS access.")
+    summary_parser.add_argument("--desired", required=True, help="Desired state JSON/YAML file.")
+    summary_parser.add_argument("--current-snapshot", help="Current state JSON/YAML snapshot.")
+    _add_output_arg(summary_parser, markdown=True)
+    _add_report_output_file_arg(summary_parser)
+
     plan_parser = subparsers.add_parser("plan", help="Produce a conservative Lake Formation change plan.")
     _add_state_args(plan_parser)
     _add_aws_args(plan_parser)
@@ -188,6 +197,16 @@ def _cmd_lint(args: argparse.Namespace) -> int:
     _emit_output(_render_lint_findings(findings, args.output), args.output_file, label="lint report")
     if args.fail_on_findings and _should_fail_on_lint_findings(findings, args.fail_on_severity):
         return 1
+    return 0
+
+
+def _cmd_summary(args: argparse.Namespace) -> int:
+    desired = load_desired(args.desired)
+    current = load_current(args.current_snapshot) if args.current_snapshot else None
+    payload = {"desired": _state_profile(desired)}
+    if current:
+        payload["current_snapshot"] = _state_profile(current)
+    _emit_output(_render_state_profiles(payload, args.output), args.output_file, label="summary report")
     return 0
 
 
@@ -394,6 +413,29 @@ def _state_summary(state: GuardrailState) -> dict:
     }
 
 
+def _state_profile(state: GuardrailState) -> dict:
+    resource_kinds = Counter(assignment.resource.kind for assignment in state.resource_tags)
+    grant_resource_kinds = Counter(grant.resource.kind for grant in state.grants)
+    resource_tag_keys = sorted({key for assignment in state.resource_tags for key in assignment.tags})
+    permissions = sorted({permission for grant in state.grants for permission in grant.permissions})
+    grantable_permissions = sorted(
+        {permission for grant in state.grants for permission in grant.grantable_permissions}
+    )
+    return {
+        "lf_tags": len(state.lf_tags),
+        "lf_tag_keys": [tag.key for tag in state.lf_tags],
+        "lf_tag_values": {tag.key: list(tag.values) for tag in state.lf_tags},
+        "resource_tags": len(state.resource_tags),
+        "resource_kinds": dict(sorted(resource_kinds.items())),
+        "resource_tag_keys": resource_tag_keys,
+        "grants": len(state.grants),
+        "grant_principals": sorted({grant.principal for grant in state.grants}),
+        "grant_resource_kinds": dict(sorted(grant_resource_kinds.items())),
+        "permissions": permissions,
+        "grantable_permissions": grantable_permissions,
+    }
+
+
 def _format_validation_summary(prefix: str, summary: dict) -> str:
     return (
         "{prefix}: {lf_tags} LF-Tag definition(s), "
@@ -544,6 +586,77 @@ def _render_lint_findings(findings: Iterable[LintFinding], output: str) -> str:
             )
         )
     return "\n".join(lines) + "\n"
+
+
+def _render_state_profiles(profiles: dict, output: str) -> str:
+    if output == "json":
+        return dumps_json(profiles)
+    if output == "markdown":
+        return _render_state_profiles_markdown(profiles)
+    lines = []
+    for name, profile in profiles.items():
+        lines.append("{} summary:".format(_profile_label(name)))
+        lines.extend(_render_state_profile_lines(profile))
+    return "\n".join(lines) + "\n"
+
+
+def _render_state_profiles_markdown(profiles: dict) -> str:
+    lines = ["### lfguard summary", ""]
+    for name, profile in profiles.items():
+        lines.extend(
+            [
+                "#### {}".format(_profile_label(name)),
+                "",
+                "| Metric | Value |",
+                "| --- | --- |",
+            ]
+        )
+        for metric, value in _state_profile_metrics(profile):
+            lines.append("| {} | {} |".format(_markdown_cell(metric), _markdown_cell(value)))
+        lines.append("")
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _render_state_profile_lines(profile: dict) -> list:
+    return ["- {}: {}".format(metric, value) for metric, value in _state_profile_metrics(profile)]
+
+
+def _state_profile_metrics(profile: dict) -> tuple:
+    return (
+        ("LF-Tag definitions", _count_with_list(profile["lf_tags"], profile["lf_tag_keys"])),
+        ("Resource tag assignments", str(profile["resource_tags"])),
+        ("Resource kinds", _format_counts(profile["resource_kinds"])),
+        ("Resource tag keys", _format_list(profile["resource_tag_keys"])),
+        ("Grants", str(profile["grants"])),
+        ("Grant principals", _format_list(profile["grant_principals"])),
+        ("Grant resource kinds", _format_counts(profile["grant_resource_kinds"])),
+        ("Permissions", _format_list(profile["permissions"])),
+        ("Grantable permissions", _format_list(profile["grantable_permissions"])),
+    )
+
+
+def _profile_label(name: str) -> str:
+    return name.replace("_", " ").capitalize()
+
+
+def _count_with_list(count: int, values: Iterable[str]) -> str:
+    rendered = _format_list(values)
+    if rendered == "none":
+        return str(count)
+    return "{} ({})".format(count, rendered)
+
+
+def _format_counts(counts: Mapping[str, int]) -> str:
+    if not counts:
+        return "none"
+    return ", ".join("{}={}".format(key, counts[key]) for key in sorted(counts))
+
+
+def _format_list(values: Iterable[str]) -> str:
+    values = tuple(values)
+    if not values:
+        return "none"
+    return ", ".join(str(value) for value in values)
 
 
 def _render_lint_findings_markdown(findings: Iterable[LintFinding]) -> str:
@@ -764,6 +877,12 @@ lfguard validate --desired {desired_name} --current-snapshot {current_name}
 
 ```bash
 lfguard lint --desired {desired_name}
+```
+
+## Summarize Policy
+
+```bash
+lfguard summary --desired {desired_name} --current-snapshot {current_name}
 ```
 
 ## Audit Drift

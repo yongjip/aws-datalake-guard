@@ -222,6 +222,15 @@ Lint the desired policy for undefined LF-Tag references:
 lfguard lint --desired desired.json --fail-on-findings
 ```
 
+Summarize policy contents for review:
+
+```bash
+lfguard summary \
+  --desired desired.json \
+  --current-snapshot current.json \
+  --output markdown
+```
+
 Save a validation report:
 
 ```bash

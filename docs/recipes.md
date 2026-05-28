@@ -111,6 +111,18 @@ lfguard lint \
   --fail-on-findings
 ```
 
+## Summarize Policy Inventory
+
+Generate a compact inventory for reviewers:
+
+```bash
+lfguard summary \
+  --desired policy/desired.json \
+  --current-snapshot snapshots/prod-current.json \
+  --output markdown \
+  --output-file artifacts/lfguard-summary.md
+```
+
 ## Audit in CI
 
 Store desired state in the repository and compare it with a current-state

@@ -42,6 +42,17 @@ This command only reads the desired policy. It catches undefined LF-Tag keys and
 values in resource tag assignments and LF-Tag policy expressions before a CI job
 captures live AWS state.
 
+## Summarize the Policy
+
+```bash
+lfguard summary \
+  --desired examples/desired.json \
+  --current-snapshot examples/current-snapshot.json
+```
+
+This produces a compact inventory of LF-Tag keys, resource kinds, grant
+principals, grant resource kinds, and permissions for reviewers.
+
 ## Audit Drift
 
 ```bash

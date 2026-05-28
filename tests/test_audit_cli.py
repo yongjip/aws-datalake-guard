@@ -620,6 +620,7 @@ class AuditCliTests(unittest.TestCase):
             self.assertEqual(len(current.lf_tags), 2)
             self.assertIn("lfguard Demo", sample_readme)
             self.assertIn("lfguard lint --desired desired.json", sample_readme)
+            self.assertIn("lfguard summary --desired desired.json", sample_readme)
             self.assertIn("lfguard audit --desired desired.json", sample_readme)
             self.assertIn("lfguard plan --desired desired.json", sample_readme)
 
@@ -931,6 +932,70 @@ class AuditCliTests(unittest.TestCase):
             self.assertEqual(exit_code, 0)
             self.assertIn("### lfguard lint", stdout.getvalue())
             self.assertIn("DESIRED_STATE_EMPTY", stdout.getvalue())
+
+    def test_cli_summary_outputs_policy_inventory_json(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            desired_path = tmp_path / "desired.json"
+            current_path = tmp_path / "current.json"
+            desired_path.write_text(
+                json.dumps(
+                    {
+                        "lf_tags": {"sensitivity": ["internal"], "domain": ["sales"]},
+                        "resource_tags": [
+                            {
+                                "resource": {"kind": "table", "database": "analytics", "table": "orders"},
+                                "tags": {"sensitivity": ["internal"], "domain": ["sales"]},
+                            }
+                        ],
+                        "grants": [
+                            {
+                                "principal": "role",
+                                "resource": {"kind": "database", "database": "analytics"},
+                                "permissions": ["DESCRIBE"],
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            current_path.write_text(json.dumps({"lf_tags": {"sensitivity": ["internal"]}, "grants": []}), encoding="utf-8")
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                exit_code = main(
+                    [
+                        "summary",
+                        "--desired",
+                        str(desired_path),
+                        "--current-snapshot",
+                        str(current_path),
+                        "--output",
+                        "json",
+                    ]
+                )
+
+            payload = json.loads(stdout.getvalue())
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(payload["desired"]["lf_tag_keys"], ["domain", "sensitivity"])
+            self.assertEqual(payload["desired"]["resource_kinds"], {"table": 1})
+            self.assertEqual(payload["desired"]["grant_principals"], ["role"])
+            self.assertEqual(payload["desired"]["grant_resource_kinds"], {"database": 1})
+            self.assertEqual(payload["desired"]["permissions"], ["DESCRIBE"])
+            self.assertEqual(payload["current_snapshot"]["lf_tags"], 1)
+
+    def test_cli_summary_outputs_markdown(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            desired_path = Path(tmp) / "desired.json"
+            desired_path.write_text(json.dumps({"lf_tags": {"sensitivity": ["internal"]}, "grants": []}), encoding="utf-8")
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                exit_code = main(["summary", "--desired", str(desired_path), "--output", "markdown"])
+
+            self.assertEqual(exit_code, 0)
+            self.assertIn("### lfguard summary", stdout.getvalue())
+            self.assertIn("| LF-Tag definitions | 1 (sensitivity) |", stdout.getvalue())
 
     def test_cli_version_outputs_short_command_name(self):
         stdout = io.StringIO()

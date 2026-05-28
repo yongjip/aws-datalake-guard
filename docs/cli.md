@@ -18,6 +18,7 @@ Use `lfguard --help` or `lfguard <command> --help` for argparse-generated help.
 | `doctor` | Check the local install and optional extras. | No |
 | `validate` | Parse and validate local desired/current state files. | No |
 | `lint` | Check desired policy semantics, such as undefined LF-Tag references. | No |
+| `summary` | Summarize desired and optional current state for review. | No |
 | `audit` | Report drift between desired and current state. | Only when `--current-snapshot` is omitted |
 | `plan` | Produce a conservative change plan. | Only when `--current-snapshot` is omitted |
 | `snapshot` | Export live AWS state for a desired policy scope. | Yes |
@@ -183,6 +184,27 @@ Useful options:
 - `--fail-on-findings`: return exit code `1` when any lint finding exists.
 - `--fail-on-severity any|error`: severity that triggers `--fail-on-findings`.
   Use `error` when warnings should stay visible but should not fail CI.
+
+## `summary`
+
+Summarize policy inventory without calling AWS:
+
+```bash
+lfguard summary \
+  --desired policy/desired.json \
+  --current-snapshot snapshots/prod-current.json
+```
+
+Use it in pull requests when reviewers need a compact view of LF-Tag keys,
+resource kinds, grant principals, grant resource kinds, and permissions:
+
+```bash
+lfguard summary \
+  --desired policy/desired.json \
+  --current-snapshot snapshots/prod-current.json \
+  --output markdown \
+  --output-file artifacts/lfguard-summary.md
+```
 
 ## `audit`
 

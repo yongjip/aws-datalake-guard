@@ -59,6 +59,12 @@ lfguard lint --desired policy/desired.json --fail-on-findings
 Commit desired state only after principal names, database names, table names,
 and LF-Tag values have passed parser, lint, and review rules.
 
+Generate a compact summary for reviewers:
+
+```bash
+lfguard summary --desired policy/desired.json --output markdown
+```
+
 ## 4. Capture Current State
 
 Install the AWS extra and capture a scoped snapshot from a non-production

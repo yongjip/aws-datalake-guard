@@ -6,6 +6,7 @@
 - Adds the `lfguard` CLI with `init`, `schema`, `validate`, `lint`, `audit`,
   `plan`, `sample`, `doctor`, `snapshot`, and conservative `apply` commands.
 - Adds desired-policy lint checks for undefined LF-Tag keys and values.
+- Adds policy summary reports for compact review of desired and current state.
 - Adds text, JSON, and Markdown output for reviewable audit and plan workflows.
 - Adds SARIF output for audit findings.
 - Adds an offline install check for optional AWS and YAML integrations.

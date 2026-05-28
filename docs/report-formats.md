@@ -118,6 +118,41 @@ Markdown lint reports use a table format suitable for pull request comments and
 job summaries. `lint --fail-on-findings` writes any configured `--output-file`
 before returning exit code `1`.
 
+## Summary Reports
+
+Use summary reports when reviewers need a compact inventory before reading the
+full desired/current state files:
+
+```bash
+lfguard summary \
+  --desired examples/desired.json \
+  --current-snapshot examples/current-snapshot.json \
+  --output json
+```
+
+JSON summary reports include one object for desired state and, when provided,
+one object for current snapshot:
+
+```json
+{
+  "desired": {
+    "lf_tags": 2,
+    "lf_tag_keys": ["domain", "sensitivity"],
+    "resource_tags": 1,
+    "resource_kinds": {"table": 1},
+    "resource_tag_keys": ["domain", "sensitivity"],
+    "grants": 1,
+    "grant_principals": ["arn:aws:iam::111122223333:role/Analyst"],
+    "grant_resource_kinds": {"lf_tag_policy": 1},
+    "permissions": ["DESCRIBE", "SELECT"],
+    "grantable_permissions": []
+  }
+}
+```
+
+Markdown summary reports use a compact table for pull request comments and
+GitHub Actions artifacts.
+
 ## Plan Reports
 
 Use plan reports when you want a reviewable change list before touching AWS.
