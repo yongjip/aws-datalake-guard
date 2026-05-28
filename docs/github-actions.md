@@ -47,7 +47,16 @@ jobs:
         run: lfguard validate --desired policy/desired.yaml
 
       - name: Lint desired policy
-        run: lfguard lint --desired policy/desired.yaml --fail-on-findings --github-summary
+        run: |
+          lfguard lint \
+            --desired policy/desired.yaml \
+            --output sarif \
+            --output-file artifacts/lfguard-lint.sarif
+
+          lfguard lint \
+            --desired policy/desired.yaml \
+            --fail-on-findings \
+            --github-summary
 
       - name: Summarize policy
         run: |
@@ -94,7 +103,8 @@ For pull requests from forks, avoid granting AWS credentials directly to the PR
 workflow. A safer pattern is to run drift checks on a schedule, on manual
 dispatch, or after changes are merged to a protected branch.
 
-`lfguard audit` writes the report file before returning a non-zero status for
-`--fail-on-findings`, so the artifact upload step still has evidence to attach
-when drift breaks the job. The SARIF artifact can also be uploaded to systems
-that ingest static-analysis or governance findings.
+`lfguard lint` and `lfguard audit` write report files before returning a
+non-zero status for `--fail-on-findings`, so the artifact upload step still has
+evidence to attach when policy lint or drift checks break the job. The SARIF
+artifacts can also be uploaded to systems that ingest static-analysis or
+governance findings.

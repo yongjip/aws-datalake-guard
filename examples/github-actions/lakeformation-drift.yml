@@ -34,7 +34,16 @@ jobs:
         run: lfguard validate --desired policy/desired.yaml
 
       - name: Lint desired policy
-        run: lfguard lint --desired policy/desired.yaml --fail-on-findings --github-summary
+        run: |
+          lfguard lint \
+            --desired policy/desired.yaml \
+            --output sarif \
+            --output-file artifacts/lfguard-lint.sarif
+
+          lfguard lint \
+            --desired policy/desired.yaml \
+            --fail-on-findings \
+            --github-summary
 
       - name: Summarize policy
         run: |

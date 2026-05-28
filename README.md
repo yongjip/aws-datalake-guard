@@ -309,6 +309,15 @@ lfguard audit \
   --output-file artifacts/lfguard-audit.sarif
 ```
 
+Write a SARIF lint report before taking an AWS snapshot:
+
+```bash
+lfguard lint \
+  --desired desired.json \
+  --output sarif \
+  --output-file artifacts/lfguard-lint.sarif
+```
+
 Use Markdown output for pull request comments or GitHub Actions summaries:
 
 ```bash

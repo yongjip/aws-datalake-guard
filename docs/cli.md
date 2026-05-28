@@ -35,10 +35,11 @@ State-aware commands use these options:
 - `--region NAME`: AWS region for live operations.
 - `--catalog-id ID`: Glue Data Catalog ID.
 - `--output text|json|markdown|sarif`: output format where supported. `audit`
-  supports SARIF; `audit`, `plan`, and `apply` support Markdown.
+  and `lint` support SARIF; `audit`, `plan`, and `apply` support Markdown.
 - `--output-file PATH`: write the command report to a file instead of stdout
-  where supported. `doctor`, `validate`, `audit`, `plan`, and `apply` support
-  this for reports; `init`, `schema`, and `snapshot` use it for generated files.
+  where supported. `doctor`, `validate`, `lint`, `summary`, `audit`, `plan`,
+  and `apply` support this for reports; `init`, `schema`, and `snapshot` use it
+  for generated files.
 - `--github-summary`: append a Markdown report to `$GITHUB_STEP_SUMMARY` where
   supported.
 
@@ -185,6 +186,8 @@ Useful options:
 - `--fail-on-findings`: return exit code `1` when any lint finding exists.
 - `--fail-on-severity any|error`: severity that triggers `--fail-on-findings`.
   Use `error` when warnings should stay visible but should not fail CI.
+- `--output sarif`: write lint findings as SARIF 2.1.0 for code scanning,
+  governance dashboards, or artifact ingestion.
 
 ## `summary`
 

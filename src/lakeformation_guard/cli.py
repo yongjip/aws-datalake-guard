@@ -125,7 +125,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     lint_parser = subparsers.add_parser("lint", help="Check a desired policy for semantic issues without AWS access.")
     lint_parser.add_argument("--desired", required=True, help="Desired state JSON/YAML file.")
-    _add_output_arg(lint_parser, markdown=True)
+    _add_output_arg(lint_parser, markdown=True, sarif=True)
     _add_report_output_file_arg(lint_parser)
     _add_github_summary_arg(lint_parser)
     lint_parser.add_argument("--fail-on-findings", action="store_true", help="Exit with status 1 when any lint finding is present.")
@@ -198,7 +198,7 @@ def _cmd_lint(args: argparse.Namespace) -> int:
     findings = lint_desired(desired)
     if args.github_summary:
         _append_github_summary(_render_lint_findings_markdown(findings))
-    _emit_output(_render_lint_findings(findings, args.output), args.output_file, label="lint report")
+    _emit_output(_render_lint_findings(findings, args.output, sarif_uri=args.desired), args.output_file, label="lint report")
     if args.fail_on_findings and _should_fail_on_lint_findings(findings, args.fail_on_severity):
         return 1
     return 0
@@ -567,7 +567,7 @@ def _render_validation(desired_summary: dict, current_summary: Optional[dict], o
     return "\n".join(lines) + "\n"
 
 
-def _render_lint_findings(findings: Iterable[LintFinding], output: str) -> str:
+def _render_lint_findings(findings: Iterable[LintFinding], output: str, *, sarif_uri: Optional[str] = None) -> str:
     findings = tuple(findings)
     summary = _lint_finding_summary(findings)
     if output == "json":
@@ -579,6 +579,8 @@ def _render_lint_findings(findings: Iterable[LintFinding], output: str) -> str:
         )
     if output == "markdown":
         return _render_lint_findings_markdown(findings)
+    if output == "sarif":
+        return dumps_json(_findings_to_sarif(findings, sarif_uri=sarif_uri))
     if not findings:
         return "No lint findings.\n"
     lines = [_format_lint_finding_summary(summary)]
@@ -1076,7 +1078,7 @@ def _render_findings_markdown(findings: Iterable[AuditFinding]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def _findings_to_sarif(findings: Iterable[AuditFinding], *, sarif_uri: Optional[str] = None) -> dict:
+def _findings_to_sarif(findings: Iterable[Any], *, sarif_uri: Optional[str] = None) -> dict:
     findings = tuple(findings)
     rules = []
     for code in sorted({finding.code for finding in findings}):
@@ -1130,7 +1132,7 @@ def _sarif_level(severity: str) -> str:
     return "note"
 
 
-def _sarif_location(finding: AuditFinding, sarif_uri: Optional[str]) -> dict:
+def _sarif_location(finding: Any, sarif_uri: Optional[str]) -> dict:
     artifact_uri = sarif_uri or "lfguard-audit"
     return {
         "physicalLocation": {

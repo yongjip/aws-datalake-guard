@@ -106,6 +106,11 @@ Use it as a CI gate:
 ```bash
 lfguard lint \
   --desired policy/desired.json \
+  --output sarif \
+  --output-file artifacts/lfguard-lint.sarif
+
+lfguard lint \
+  --desired policy/desired.json \
   --output json \
   --output-file artifacts/lfguard-lint.json \
   --fail-on-findings \

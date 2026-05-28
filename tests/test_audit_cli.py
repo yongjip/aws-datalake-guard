@@ -909,6 +909,42 @@ class AuditCliTests(unittest.TestCase):
             self.assertEqual(payload["summary"], {"total": 1, "errors": 1, "warnings": 0})
             self.assertEqual(payload["findings"][0]["code"], "RESOURCE_TAG_VALUE_UNDEFINED")
 
+    def test_cli_lint_outputs_sarif(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            desired_path = tmp_path / "desired.json"
+            desired_path.write_text(
+                json.dumps(
+                    {
+                        "lf_tags": {"sensitivity": ["internal"]},
+                        "resource_tags": [
+                            {
+                                "resource": {"kind": "table", "database": "analytics", "table": "orders"},
+                                "tags": {"sensitivity": ["restricted"]},
+                            }
+                        ],
+                        "grants": [],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                exit_code = main(["lint", "--desired", str(desired_path), "--output", "sarif"])
+
+            payload = json.loads(stdout.getvalue())
+            result = payload["runs"][0]["results"][0]
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(payload["version"], "2.1.0")
+            self.assertEqual(payload["runs"][0]["tool"]["driver"]["name"], "lfguard")
+            self.assertEqual(result["ruleId"], "RESOURCE_TAG_VALUE_UNDEFINED")
+            self.assertEqual(result["level"], "error")
+            self.assertEqual(
+                result["locations"][0]["physicalLocation"]["artifactLocation"]["uri"],
+                str(desired_path),
+            )
+
     def test_cli_lint_warning_only_can_pass_when_failing_on_errors(self):
         with tempfile.TemporaryDirectory() as tmp:
             desired_path = Path(tmp) / "desired.json"

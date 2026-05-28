@@ -8,7 +8,7 @@
 - Adds desired-policy lint checks for undefined LF-Tag keys and values.
 - Adds policy summary reports for compact review of desired and current state.
 - Adds text, JSON, and Markdown output for reviewable audit and plan workflows.
-- Adds SARIF output for audit findings.
+- Adds SARIF output for audit and lint findings.
 - Adds an offline install check for optional AWS and YAML integrations.
 - Adds `doctor --require` checks for failing CI when required optional extras
   are missing.

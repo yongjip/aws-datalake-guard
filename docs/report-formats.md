@@ -118,6 +118,16 @@ Markdown lint reports use a table format suitable for pull request comments and
 job summaries. `lint --fail-on-findings` writes any configured `--output-file`
 before returning exit code `1`.
 
+SARIF lint reports use the same SARIF 2.1.0 shape as audit reports, with
+desired-policy lint codes as `ruleId` values:
+
+```bash
+lfguard lint \
+  --desired examples/desired.json \
+  --output sarif \
+  --output-file artifacts/lfguard-lint.sarif
+```
+
 ## Summary Reports
 
 Use summary reports when reviewers need a compact inventory before reading the
