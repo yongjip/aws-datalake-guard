@@ -98,3 +98,12 @@ class PackageMetadataTests(unittest.TestCase):
             self.assertIn("/aws-lakeformation-guard --version", workflow)
             self.assertIn("/lfguard check", workflow)
             self.assertIn("--current-snapshot /tmp/lfguard-demo/current-snapshot.json", workflow)
+
+    def test_release_workflow_verifies_published_package(self):
+        workflow = (self.root / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
+
+        self.assertIn("verify-pypi:", workflow)
+        self.assertIn("needs: publish", workflow)
+        self.assertIn("python -m pip install lfguard", workflow)
+        self.assertIn("lfguard sample --output-dir /tmp/lfguard-pypi-demo", workflow)
+        self.assertIn("aws-lakeformation-guard --version", workflow)

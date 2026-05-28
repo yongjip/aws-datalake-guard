@@ -69,6 +69,8 @@
 - Adds an AWS API coverage guide for live inventory and apply calls.
 - Adds an FAQ for safety, scope, credentials, and adoption questions.
 - Adds CI and release workflow smoke tests for the built wheel.
+- Adds a release workflow gate that installs and smoke-tests the package from
+  PyPI after publishing.
 - Adds docs tests for internal Markdown links.
 - Adds package metadata tests for version, console scripts, and project URLs.
 - Modernizes the build backend requirement for current setuptools releases.
