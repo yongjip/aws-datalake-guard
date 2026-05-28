@@ -102,6 +102,9 @@ class PackageMetadataTests(unittest.TestCase):
     def test_release_workflow_verifies_published_package(self):
         workflow = (self.root / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
 
+        self.assertIn("Validate release tag", workflow)
+        self.assertIn("package_version=", workflow)
+        self.assertIn("release_version=", workflow)
         self.assertIn("verify-pypi:", workflow)
         self.assertIn("needs: publish", workflow)
         self.assertIn("RELEASE_TAG: ${{ github.event.release.tag_name }}", workflow)
