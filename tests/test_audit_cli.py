@@ -622,11 +622,11 @@ class AuditCliTests(unittest.TestCase):
             self.assertEqual(len(desired.lf_tags), 2)
             self.assertEqual(schema["title"], "lfguard state")
             self.assertIn("python -m pip install lfguard", workflow)
-            self.assertIn("lfguard validate", workflow)
-            self.assertIn("lfguard lint", workflow)
+            self.assertIn("lfguard check", workflow)
+            self.assertIn("--output-file artifacts/lfguard-check.md", workflow)
             self.assertIn("lfguard summary", workflow)
             self.assertIn("actions/upload-artifact@v4", workflow)
-            self.assertIn("lfguard validate --desired policy/desired.json", pre_commit)
+            self.assertIn("lfguard check --desired policy/desired.json --fail-on-findings", pre_commit)
             self.assertIn("lfguard Policy Bootstrap", readme)
 
     def test_cli_bootstrap_can_write_yaml_layout(self):
@@ -645,7 +645,7 @@ class AuditCliTests(unittest.TestCase):
             self.assertFalse((output_dir / "policy" / "desired.json").exists())
             self.assertIn('python -m pip install "lfguard[yaml]"', workflow)
             self.assertIn("lfguard doctor --require yaml", workflow)
-            self.assertIn("lfguard validate --desired policy/desired.yaml", pre_commit)
+            self.assertIn("lfguard check --desired policy/desired.yaml --fail-on-findings", pre_commit)
             self.assertIn('python -m pip install "lfguard[yaml]"', readme)
 
     def test_cli_bootstrap_refuses_to_overwrite_without_force(self):
@@ -682,7 +682,7 @@ class AuditCliTests(unittest.TestCase):
             self.assertEqual(len(desired.lf_tags), 2)
             self.assertEqual(len(current.lf_tags), 2)
             self.assertIn("lfguard Demo", sample_readme)
-            self.assertIn("lfguard lint --desired desired.json", sample_readme)
+            self.assertIn("lfguard check --desired desired.json --current-snapshot current-snapshot.json", sample_readme)
             self.assertIn("lfguard summary --desired desired.json", sample_readme)
             self.assertIn("lfguard audit --desired desired.json", sample_readme)
             self.assertIn("lfguard plan --desired desired.json", sample_readme)
@@ -718,8 +718,10 @@ class AuditCliTests(unittest.TestCase):
             self.assertIn(str(workflow_path), stdout.getvalue())
             self.assertIn("GitHub Actions Demo", readme)
             self.assertIn("python -m pip install lfguard", workflow)
-            self.assertIn("lfguard validate --desired lfguard-demo/desired.json", workflow)
-            self.assertIn("lfguard lint --desired lfguard-demo/desired.json --fail-on-findings", workflow)
+            self.assertIn("lfguard check", workflow)
+            self.assertIn("--desired lfguard-demo/desired.json", workflow)
+            self.assertIn("--current-snapshot lfguard-demo/current-snapshot.json", workflow)
+            self.assertIn("--output-file artifacts/lfguard-check.md", workflow)
             self.assertIn("actions/upload-artifact@v4", workflow)
 
     def test_cli_sample_can_write_yaml_demo_files(self):
@@ -753,7 +755,7 @@ class AuditCliTests(unittest.TestCase):
 
             self.assertEqual(exit_code, 0)
             self.assertIn('python -m pip install "lfguard[yaml]"', workflow)
-            self.assertIn("lfguard validate --desired lfguard-demo/desired.yaml", workflow)
+            self.assertIn("--desired lfguard-demo/desired.yaml", workflow)
             self.assertIn("--current-snapshot lfguard-demo/current-snapshot.yaml", workflow)
 
     def test_cli_sample_can_write_both_json_and_yaml_demo_files(self):

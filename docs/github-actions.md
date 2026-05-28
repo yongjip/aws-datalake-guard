@@ -45,21 +45,6 @@ jobs:
       - name: Export policy schema
         run: lfguard schema --output-file policy/lfguard.schema.json
 
-      - name: Validate desired policy
-        run: lfguard validate --desired policy/desired.yaml
-
-      - name: Lint desired policy
-        run: |
-          lfguard lint \
-            --desired policy/desired.yaml \
-            --output sarif \
-            --output-file artifacts/lfguard-lint.sarif
-
-          lfguard lint \
-            --desired policy/desired.yaml \
-            --fail-on-findings \
-            --github-summary
-
       - name: Summarize policy
         run: |
           lfguard summary \
@@ -74,6 +59,21 @@ jobs:
             --desired policy/desired.yaml \
             --region ap-northeast-2 \
             --output-file snapshots/prod-current.json
+
+      - name: Check policy files
+        run: |
+          lfguard lint \
+            --desired policy/desired.yaml \
+            --output sarif \
+            --output-file artifacts/lfguard-lint.sarif
+
+          lfguard check \
+            --desired policy/desired.yaml \
+            --current-snapshot snapshots/prod-current.json \
+            --output markdown \
+            --output-file artifacts/lfguard-check.md \
+            --fail-on-findings \
+            --github-summary
 
       - name: Audit drift
         run: |
@@ -105,11 +105,11 @@ For pull requests from forks, avoid granting AWS credentials directly to the PR
 workflow. A safer pattern is to run drift checks on a schedule, on manual
 dispatch, or after changes are merged to a protected branch.
 
-`lfguard lint` and `lfguard audit` write report files before returning a
-non-zero status for `--fail-on-findings`, so the artifact upload step still has
-evidence to attach when policy lint or drift checks break the job. The SARIF
-artifacts can also be uploaded to systems that ingest static-analysis or
-governance findings.
+`lfguard check`, `lfguard lint`, and `lfguard audit` write report files before
+returning a non-zero status for `--fail-on-findings`, so the artifact upload
+step still has evidence to attach when policy lint or drift checks break the
+job. The SARIF artifacts can also be uploaded to systems that ingest
+static-analysis or governance findings.
 
 ## GitHub Code Scanning
 
@@ -119,6 +119,6 @@ workflow. It:
 
 - grants `security-events: write` for SARIF upload;
 - writes separate `lfguard-lint` and `lfguard-audit` SARIF categories;
-- uploads both SARIF files before enforcing the final lint and drift gates.
+- uploads both SARIF files before enforcing the final check and drift gates.
 
 This keeps findings visible in the Security tab even when the final gate fails.

@@ -131,7 +131,8 @@ lfguard schema --output-file policy/lfguard.schema.json
 
 ## Validate Policy Files
 
-Run this in pre-commit hooks or CI before comparing against AWS state:
+Run this when you want a validation-only file check before comparing against
+AWS state:
 
 ```bash
 lfguard validate \

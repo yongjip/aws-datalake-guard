@@ -42,18 +42,12 @@ extra when needed:
 python -m pip install "lfguard[yaml]"
 ```
 
-## 3. Validate And Lint Policy
+## 3. Check Policy Locally
 
-Run validation before connecting to AWS:
-
-```bash
-lfguard validate --desired policy/desired.json
-```
-
-Run lint checks for undefined LF-Tag references:
+Run the offline check before connecting to AWS:
 
 ```bash
-lfguard lint --desired policy/desired.json --fail-on-findings
+lfguard check --desired policy/desired.json --fail-on-findings
 ```
 
 Commit desired state only after principal names, database names, table names,
@@ -83,6 +77,18 @@ The snapshot scope comes from desired state, so review the desired file before
 using it to read live AWS state.
 
 ## 5. Add CI Drift Checks
+
+Use check when a workflow should validate local state files and lint desired
+policy before enforcing drift:
+
+```bash
+lfguard check \
+  --desired policy/desired.json \
+  --current-snapshot snapshots/sandbox-current.json \
+  --fail-on-findings \
+  --output markdown \
+  --output-file artifacts/lfguard-check.md
+```
 
 Use audit when drift should be visible as findings:
 

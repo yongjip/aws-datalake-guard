@@ -45,7 +45,13 @@ jobs:
           python -m venv /tmp/lfguard-wheel-smoke
           /tmp/lfguard-wheel-smoke/bin/python -m pip install --no-index --find-links dist lfguard
           /tmp/lfguard-wheel-smoke/bin/lfguard --version
+          /tmp/lfguard-wheel-smoke/bin/aws-lakeformation-guard --version
           /tmp/lfguard-wheel-smoke/bin/lfguard sample --output-dir /tmp/lfguard-demo
+          /tmp/lfguard-wheel-smoke/bin/lfguard check \
+            --desired /tmp/lfguard-demo/desired.json \
+            --current-snapshot /tmp/lfguard-demo/current-snapshot.json \
+            --output markdown \
+            --output-file /tmp/lfguard-check.md
           /tmp/lfguard-wheel-smoke/bin/lfguard lint --desired /tmp/lfguard-demo/desired.json
           /tmp/lfguard-wheel-smoke/bin/lfguard lint --desired /tmp/lfguard-demo/desired.json --output sarif --output-file /tmp/lfguard-lint.sarif
           /tmp/lfguard-wheel-smoke/bin/lfguard summary --desired /tmp/lfguard-demo/desired.json --current-snapshot /tmp/lfguard-demo/current-snapshot.json --output markdown

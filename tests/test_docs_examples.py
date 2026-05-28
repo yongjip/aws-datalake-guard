@@ -95,6 +95,8 @@ class DocumentationExampleTests(unittest.TestCase):
             "github/codeql-action/upload-sarif@v3",
             "artifacts/lfguard-lint.sarif",
             "artifacts/lfguard-audit.sarif",
+            "artifacts/lfguard-check.md",
+            "lfguard check",
             "category: lfguard-lint",
             "category: lfguard-audit",
         ):

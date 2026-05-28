@@ -66,11 +66,14 @@ jobs:
         run: |
           set +e
 
-          lfguard lint \
+          lfguard check \
             --desired policy/desired.yaml \
+            --current-snapshot snapshots/prod-current.json \
+            --output markdown \
+            --output-file artifacts/lfguard-check.md \
             --fail-on-findings \
             --github-summary
-          lint_status=$?
+          check_status=$?
 
           lfguard audit \
             --desired policy/desired.yaml \
@@ -81,6 +84,6 @@ jobs:
             --github-summary
           audit_status=$?
 
-          if [ "$lint_status" -ne 0 ] || [ "$audit_status" -ne 0 ]; then
+          if [ "$check_status" -ne 0 ] || [ "$audit_status" -ne 0 ]; then
             exit 1
           fi

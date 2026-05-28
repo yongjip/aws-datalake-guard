@@ -8,6 +8,7 @@
   `completion`, `snapshot`, and conservative `apply` commands.
 - Adds desired-policy lint checks for undefined LF-Tag keys and values.
 - Adds a `check` command for one-step offline validation and lint gates.
+- Uses `check` in generated policy/demo workflows and release smoke tests.
 - Adds policy summary reports for compact review of desired and current state.
 - Adds text, JSON, and Markdown output for reviewable audit and plan workflows.
 - Adds SARIF output for audit and lint findings.

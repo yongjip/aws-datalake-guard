@@ -61,7 +61,7 @@ for live inventory and apply.
 
 Start offline with `lfguard sample`, then generate a desired-state file with
 `lfguard init`. Once the shape matches your policy model, add a CI job that runs
-`lfguard validate`, `lfguard lint --fail-on-findings`, `lfguard audit`, or
+`lfguard check --fail-on-findings`, `lfguard audit`, or
 `lfguard plan --fail-on-changes` against a current-state snapshot.
 
 Use live `lfguard apply --execute` only after reviewing the generated plan.

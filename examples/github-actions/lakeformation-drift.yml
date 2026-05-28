@@ -30,21 +30,6 @@ jobs:
       - name: Check lfguard install
         run: lfguard doctor --require aws --require yaml
 
-      - name: Validate desired policy
-        run: lfguard validate --desired policy/desired.yaml
-
-      - name: Lint desired policy
-        run: |
-          lfguard lint \
-            --desired policy/desired.yaml \
-            --output sarif \
-            --output-file artifacts/lfguard-lint.sarif
-
-          lfguard lint \
-            --desired policy/desired.yaml \
-            --fail-on-findings \
-            --github-summary
-
       - name: Summarize policy
         run: |
           lfguard summary \
@@ -59,6 +44,21 @@ jobs:
             --desired policy/desired.yaml \
             --region ap-northeast-2 \
             --output-file snapshots/prod-current.json
+
+      - name: Check policy files
+        run: |
+          lfguard lint \
+            --desired policy/desired.yaml \
+            --output sarif \
+            --output-file artifacts/lfguard-lint.sarif
+
+          lfguard check \
+            --desired policy/desired.yaml \
+            --current-snapshot snapshots/prod-current.json \
+            --output markdown \
+            --output-file artifacts/lfguard-check.md \
+            --fail-on-findings \
+            --github-summary
 
       - name: Audit drift
         run: |

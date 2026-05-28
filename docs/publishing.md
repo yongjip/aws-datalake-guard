@@ -23,6 +23,32 @@ installed `lfguard` CLI, and uploads to PyPI through OIDC.
 Use [`release-notes/v0.1.0.md`](release-notes/v0.1.0.md) as the GitHub release
 body for the first public release.
 
+## Release Preflight
+
+Before publishing, verify the release candidate from the repository root:
+
+```bash
+python -m unittest discover -s tests
+python -m build
+python -m twine check dist/*
+python -m venv /tmp/lfguard-wheel-smoke
+/tmp/lfguard-wheel-smoke/bin/python -m pip install --no-index --find-links dist lfguard
+/tmp/lfguard-wheel-smoke/bin/lfguard --version
+/tmp/lfguard-wheel-smoke/bin/aws-lakeformation-guard --version
+/tmp/lfguard-wheel-smoke/bin/lfguard sample --output-dir /tmp/lfguard-demo
+/tmp/lfguard-wheel-smoke/bin/lfguard check \
+  --desired /tmp/lfguard-demo/desired.json \
+  --current-snapshot /tmp/lfguard-demo/current-snapshot.json \
+  --fail-on-findings
+```
+
+After the GitHub release workflow finishes, verify PyPI and the tag:
+
+```bash
+python -m pip index versions lfguard
+git ls-remote --tags origin v0.1.0
+```
+
 ## Manual Fallback
 
 If Trusted Publishing is not configured yet, build locally and upload with a

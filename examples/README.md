@@ -10,7 +10,7 @@ These files let you try `lfguard` without AWS credentials:
 - `github-actions/lakeformation-code-scanning.yml`: a copyable GitHub Actions
   workflow that uploads lint and audit SARIF reports to GitHub Code Scanning.
 - `pre-commit/pre-commit-config.yaml`: a copyable local pre-commit hook that
-  validates and lints a desired-state policy before commit.
+  checks a desired-state policy before commit.
 
 The snapshot is missing two desired LF-Tag values, one table tag assignment, and
 one LF-Tag policy grant. That makes it useful for seeing audit findings and
@@ -23,26 +23,17 @@ out, generate the same kind of local demo files with:
 lfguard sample --output-dir lfguard-demo
 ```
 
-## Validate the Policy
+## Check the Policy
 
 ```bash
-lfguard validate \
+lfguard check \
   --desired examples/desired.json \
   --current-snapshot examples/current-snapshot.json
 ```
 
-This command only reads local files. It should report one LF-Tag definition set,
-one resource tag assignment, and one grant in the desired policy.
-
-## Lint the Policy
-
-```bash
-lfguard lint --desired examples/desired.json
-```
-
-This command only reads the desired policy. It catches undefined LF-Tag keys and
-values in resource tag assignments and LF-Tag policy expressions before a CI job
-captures live AWS state.
+This command only reads local files. It validates the desired policy and current
+snapshot, then catches undefined LF-Tag keys and values in resource tag
+assignments and LF-Tag policy expressions.
 
 ## Summarize the Policy
 
@@ -141,15 +132,15 @@ before enabling the workflow.
 
 Use [`github-actions/lakeformation-code-scanning.yml`](github-actions/lakeformation-code-scanning.yml)
 when your repository can upload SARIF to GitHub Code Scanning. It uploads
-separate `lfguard-lint` and `lfguard-audit` categories before enforcing the lint
-and drift gates.
+separate `lfguard-lint` and `lfguard-audit` categories before enforcing the
+check and drift gates.
 
 ## Copy a Pre-Commit Hook
 
 Use [`pre-commit/pre-commit-config.yaml`](pre-commit/pre-commit-config.yaml) as
-a starting point when developers should validate and lint desired-state policy
-before committing. Copy it to `.pre-commit-config.yaml`, update the policy path,
-and install the hook in an environment where `lfguard` is available:
+a starting point when developers should check desired-state policy before
+committing. Copy it to `.pre-commit-config.yaml`, update the policy path, and
+install the hook in an environment where `lfguard` is available:
 
 ```bash
 python -m pip install lfguard pre-commit

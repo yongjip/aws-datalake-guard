@@ -114,9 +114,9 @@ The generated layout includes:
 
 - `policy/desired.json`: starter desired LF-Tag and grant policy.
 - `policy/lfguard.schema.json`: JSON Schema for editor integration.
-- `.github/workflows/lfguard-policy.yml`: offline validation, lint, summary,
-  and artifact workflow.
-- `.pre-commit-config.yaml`: local validate and lint hooks.
+- `.github/workflows/lfguard-policy.yml`: offline check, summary, and artifact
+  workflow.
+- `.pre-commit-config.yaml`: local check hook.
 - `README.md`: rollout steps and first commands.
 
 Useful options:

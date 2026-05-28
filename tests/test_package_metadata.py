@@ -72,3 +72,16 @@ class PackageMetadataTests(unittest.TestCase):
             "Security",
         ):
             self.assertIn("{} =".format(label), project_urls)
+
+    def test_ci_and_release_smoke_cover_primary_cli_paths(self):
+        workflow_paths = (
+            self.root / ".github" / "workflows" / "ci.yml",
+            self.root / ".github" / "workflows" / "release.yml",
+        )
+
+        for workflow_path in workflow_paths:
+            workflow = workflow_path.read_text(encoding="utf-8")
+            self.assertIn("/lfguard --version", workflow)
+            self.assertIn("/aws-lakeformation-guard --version", workflow)
+            self.assertIn("/lfguard check", workflow)
+            self.assertIn("--current-snapshot /tmp/lfguard-demo/current-snapshot.json", workflow)
