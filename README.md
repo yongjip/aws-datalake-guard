@@ -425,8 +425,8 @@ PyPI publisher settings.
   workflow using GitHub OIDC, job summaries, and uploaded report artifacts.
 - [`docs/aws-permissions.md`](docs/aws-permissions.md): suggested minimum IAM
   permissions for read-only and apply roles.
-- [`examples/README.md`](examples/README.md): offline files, commands, and a
-  copyable GitHub Actions workflow for first local and CI runs.
+- [`examples/README.md`](examples/README.md): offline files, commands, a
+  copyable GitHub Actions workflow, and a pre-commit hook example.
 
 ## Development
 

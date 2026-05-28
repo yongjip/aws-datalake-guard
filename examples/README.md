@@ -7,6 +7,8 @@ These files let you try `lfguard` without AWS credentials:
 - `current-snapshot.json`: a deliberately incomplete current-state snapshot.
 - `github-actions/lakeformation-drift.yml`: a copyable GitHub Actions workflow
   for scheduled or manually dispatched drift checks against live AWS state.
+- `pre-commit/pre-commit-config.yaml`: a copyable local pre-commit hook that
+  validates a desired-state policy before commit.
 
 The snapshot is missing two desired LF-Tag values, one table tag assignment, and
 one LF-Tag policy grant. That makes it useful for seeing audit findings and
@@ -113,3 +115,16 @@ Use [`github-actions/lakeformation-drift.yml`](github-actions/lakeformation-drif
 as a starting point when your policy repository already uses GitHub OIDC to
 assume an AWS role. Replace the example role ARN, region, and policy paths
 before enabling the workflow.
+
+## Copy a Pre-Commit Hook
+
+Use [`pre-commit/pre-commit-config.yaml`](pre-commit/pre-commit-config.yaml) as
+a starting point when developers should validate desired-state policy before
+committing. Copy it to `.pre-commit-config.yaml`, update the policy path, and
+install the hook in an environment where `lfguard` is available:
+
+```bash
+python -m pip install lfguard pre-commit
+pre-commit install
+pre-commit run --all-files
+```

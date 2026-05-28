@@ -1,0 +1,9 @@
+repos:
+  - repo: local
+    hooks:
+      - id: lfguard-validate-desired
+        name: lfguard validate desired policy
+        entry: lfguard validate --desired policy/desired.yaml
+        language: system
+        pass_filenames: false
+        files: ^policy/desired\.(json|ya?ml)$

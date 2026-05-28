@@ -49,6 +49,7 @@ class PackageMetadataTests(unittest.TestCase):
 
         self.assertIn("recursive-include examples *.json *.md *.yaml *.yml", manifest)
         self.assertTrue((self.root / "examples" / "github-actions" / "lakeformation-drift.yml").exists())
+        self.assertTrue((self.root / "examples" / "pre-commit" / "pre-commit-config.yaml").exists())
 
     def test_project_urls_cover_user_evaluation_docs(self):
         project_urls = self.config["metadata"]["project_urls"]
