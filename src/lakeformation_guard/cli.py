@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from pathlib import Path
 from typing import Any, Iterable, Optional, Sequence
 
 from ._version import __version__
@@ -25,6 +26,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             return _cmd_plan(args)
         if args.command == "audit":
             return _cmd_audit(args)
+        if args.command == "snapshot":
+            return _cmd_snapshot(args)
         if args.command == "apply":
             return _cmd_apply(args)
     except (StateFormatError, ValueError, RuntimeError) as exc:
@@ -54,6 +57,11 @@ def build_parser() -> argparse.ArgumentParser:
     _add_output_arg(plan_parser)
     _add_plan_option_args(plan_parser)
 
+    snapshot_parser = subparsers.add_parser("snapshot", help="Export live AWS state for a desired policy scope.")
+    snapshot_parser.add_argument("--desired", required=True, help="Desired state JSON/YAML file that defines the snapshot scope.")
+    _add_aws_args(snapshot_parser)
+    snapshot_parser.add_argument("--output-file", help="Write snapshot JSON to this file instead of stdout.")
+
     apply_parser = subparsers.add_parser("apply", help="Dry-run or execute a Lake Formation change plan.")
     _add_state_args(apply_parser)
     _add_aws_args(apply_parser)
@@ -79,6 +87,22 @@ def _cmd_plan(args: argparse.Namespace) -> int:
     current = _load_current(args, desired)
     change_plan = plan(desired, current, _plan_options(args))
     _print_plan(change_plan, args.output)
+    return 0
+
+
+def _cmd_snapshot(args: argparse.Namespace) -> int:
+    desired = load_desired(args.desired)
+    current = _aws_adapter(args).load_current_state_for(desired)
+    text = dumps_json(current.to_dict())
+    if args.output_file:
+        output_path = Path(args.output_file)
+        try:
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(text, encoding="utf-8")
+        except OSError as exc:
+            raise RuntimeError("Could not write snapshot to {}: {}".format(output_path, exc)) from exc
+    else:
+        print(text, end="")
     return 0
 
 

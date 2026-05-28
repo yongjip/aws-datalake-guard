@@ -152,6 +152,17 @@ lfguard audit \
   --fail-on-findings
 ```
 
+Export a live current-state snapshot for the resources and principals referenced
+by a desired-state file:
+
+```bash
+lfguard snapshot \
+  --desired desired.yaml \
+  --profile prod \
+  --region ap-northeast-2 \
+  --output-file snapshots/prod-current.json
+```
+
 Dry-run against live AWS state:
 
 ```bash
@@ -236,6 +247,8 @@ PyPI publisher settings.
 
 - [`docs/recipes.md`](docs/recipes.md): audit-only, CI, and controlled apply
   workflows.
+- [`docs/github-actions.md`](docs/github-actions.md): a copy-paste drift check
+  workflow using GitHub OIDC.
 - [`docs/aws-permissions.md`](docs/aws-permissions.md): suggested minimum IAM
   permissions for read-only and apply roles.
 

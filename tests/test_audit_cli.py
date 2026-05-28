@@ -4,6 +4,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from lakeformation_guard import CurrentState, DesiredState, audit
 from lakeformation_guard.cli import main
@@ -100,6 +101,66 @@ class AuditCliTests(unittest.TestCase):
 
         self.assertEqual(raised.exception.code, 0)
         self.assertEqual(stdout.getvalue().strip(), "lfguard 0.1.0")
+
+    def test_cli_snapshot_outputs_live_current_state_scope(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            desired_path = tmp_path / "desired.json"
+            output_path = tmp_path / "snapshots" / "prod-current.json"
+            desired_path.write_text(
+                json.dumps(
+                    {
+                        "lf_tags": {"sensitivity": ["internal"]},
+                        "grants": [
+                            {
+                                "principal": "role",
+                                "resource": {"kind": "database", "database": "analytics"},
+                                "permissions": ["DESCRIBE"],
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            current = CurrentState.from_dict(
+                {
+                    "lf_tags": {"sensitivity": ["internal"]},
+                    "grants": [
+                        {
+                            "principal": "role",
+                            "resource": {"kind": "database", "database": "analytics"},
+                            "permissions": ["DESCRIBE"],
+                        }
+                    ],
+                }
+            )
+
+            stdout = io.StringIO()
+            with patch("lakeformation_guard.cli.AWSLakeFormationAdapter") as adapter_class:
+                adapter_class.from_boto3.return_value.load_current_state_for.return_value = current
+                with contextlib.redirect_stdout(stdout):
+                    exit_code = main(
+                        [
+                            "snapshot",
+                            "--desired",
+                            str(desired_path),
+                            "--profile",
+                            "prod",
+                            "--output-file",
+                            str(output_path),
+                        ]
+                    )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stdout.getvalue(), "")
+            adapter_class.from_boto3.assert_called_once_with(
+                profile_name="prod",
+                region_name=None,
+                catalog_id=None,
+            )
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["lf_tags"], {"sensitivity": ["internal"]})
+            self.assertEqual(payload["grants"][0]["resource"]["database"], "analytics")
 
 
 if __name__ == "__main__":

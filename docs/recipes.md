@@ -19,6 +19,24 @@ lfguard audit \
 Use this for pull requests when you want drift to block merge until the desired
 policy or AWS state is reconciled.
 
+## Capture a Live Snapshot
+
+Generate the current-state snapshot from AWS using the desired-state file as the
+scope. `lfguard` reads only the LF-Tags, resources, and grants needed for that
+comparison.
+
+```bash
+lfguard snapshot \
+  --desired policy/desired.yaml \
+  --profile prod \
+  --region ap-northeast-2 \
+  --output-file snapshots/prod-current.json
+```
+
+Commit sanitized desired state to source control. Treat generated snapshots as
+environment evidence and store them according to your organization's data
+classification rules.
+
 ## Plan Safe Changes
 
 Create a plan without destructive operations:

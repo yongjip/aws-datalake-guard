@@ -10,8 +10,8 @@ then use a separate apply role for execution.
 
 ## Read-Only Inventory Role
 
-Use this for `lfguard audit` or `lfguard plan` when `--current-snapshot` is not
-provided and live AWS inventory is loaded.
+Use this for `lfguard snapshot`, or for `lfguard audit` and `lfguard plan` when
+`--current-snapshot` is not provided and live AWS inventory is loaded.
 
 ```json
 {
