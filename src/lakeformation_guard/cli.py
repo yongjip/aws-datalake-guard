@@ -80,6 +80,12 @@ def build_parser() -> argparse.ArgumentParser:
     _add_report_output_file_arg(audit_parser)
     _add_github_summary_arg(audit_parser)
     audit_parser.add_argument("--fail-on-findings", action="store_true", help="Exit with status 1 when any finding is present.")
+    audit_parser.add_argument(
+        "--fail-on-severity",
+        choices=("any", "error"),
+        default="any",
+        help="Finding severity that triggers --fail-on-findings. Defaults to any finding.",
+    )
 
     validate_parser = subparsers.add_parser("validate", help="Validate desired/current state files without AWS access.")
     _add_state_args(validate_parser)
@@ -119,7 +125,7 @@ def _cmd_audit(args: argparse.Namespace) -> int:
     if args.github_summary:
         _append_github_summary(_render_findings_markdown(findings))
     _emit_output(_render_findings(findings, args.output), args.output_file, label="audit report")
-    if findings and args.fail_on_findings:
+    if args.fail_on_findings and _should_fail_on_findings(findings, args.fail_on_severity):
         return 1
     return 0
 
@@ -582,6 +588,13 @@ def _render_findings_markdown(findings: Iterable[AuditFinding]) -> str:
             )
         )
     return "\n".join(lines) + "\n"
+
+
+def _should_fail_on_findings(findings: Iterable[AuditFinding], fail_on_severity: str) -> bool:
+    findings = tuple(findings)
+    if fail_on_severity == "error":
+        return any(finding.severity == "error" for finding in findings)
+    return bool(findings)
 
 
 def _emit_output(text: str, output_file: Optional[str], *, label: str) -> None:

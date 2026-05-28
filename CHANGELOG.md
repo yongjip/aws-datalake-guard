@@ -9,6 +9,7 @@
 - Adds an offline install check for optional AWS and YAML integrations.
 - Adds a `--github-summary` option for GitHub Actions job summaries.
 - Adds a `--fail-on-changes` option for CI plan gates.
+- Adds a `--fail-on-severity` option for error-only audit gates.
 - Adds `--output-file` report capture for audit, plan, and apply workflows.
 - Adds `--output-file` diagnostics capture for doctor and validate workflows.
 - Documents GitHub Actions report artifact uploads and preserves CI build artifacts.

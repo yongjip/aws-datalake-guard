@@ -78,6 +78,17 @@ lfguard audit \
 Use this for pull requests when you want drift to block merge until the desired
 policy or AWS state is reconciled.
 
+Use error-only gating when unmanaged extras should stay visible but should not
+block a merge:
+
+```bash
+lfguard audit \
+  --desired policy/desired.json \
+  --current-snapshot snapshots/prod-current.json \
+  --fail-on-findings \
+  --fail-on-severity error
+```
+
 Write the audit report to a file when your CI system should upload it as an
 artifact:
 

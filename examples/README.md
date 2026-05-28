@@ -48,6 +48,17 @@ lfguard audit \
 
 The command writes `artifacts/lfguard-audit.json` before exiting with status `1`.
 
+Use `--fail-on-severity error` when warnings should be reported but should not
+fail the job:
+
+```bash
+lfguard audit \
+  --desired examples/desired.json \
+  --current-snapshot examples/current-snapshot.json \
+  --fail-on-findings \
+  --fail-on-severity error
+```
+
 ## Plan Safe Changes
 
 ```bash

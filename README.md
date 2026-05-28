@@ -224,6 +224,16 @@ lfguard audit \
   --fail-on-findings
 ```
 
+Fail only when error-severity findings are present:
+
+```bash
+lfguard audit \
+  --desired desired.json \
+  --current-snapshot current.json \
+  --fail-on-findings \
+  --fail-on-severity error
+```
+
 Write a machine-readable audit report:
 
 ```bash

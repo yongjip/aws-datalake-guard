@@ -330,6 +330,68 @@ class AuditCliTests(unittest.TestCase):
             self.assertIn("Findings:", report)
             self.assertIn("LF_TAG_VALUES_MISSING", report)
 
+    def test_cli_audit_default_fail_on_findings_fails_for_warning_only_drift(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            desired_path = tmp_path / "desired.json"
+            current_path = tmp_path / "current.json"
+            desired_path.write_text(
+                json.dumps({"lf_tags": {"sensitivity": ["internal"]}, "grants": []}),
+                encoding="utf-8",
+            )
+            current_path.write_text(
+                json.dumps({"lf_tags": {"sensitivity": ["internal", "restricted"]}, "grants": []}),
+                encoding="utf-8",
+            )
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                exit_code = main(
+                    [
+                        "audit",
+                        "--desired",
+                        str(desired_path),
+                        "--current-snapshot",
+                        str(current_path),
+                        "--fail-on-findings",
+                    ]
+                )
+
+            self.assertEqual(exit_code, 1)
+            self.assertIn("[warning] LF_TAG_VALUES_UNMANAGED", stdout.getvalue())
+
+    def test_cli_audit_can_fail_on_error_severity_only(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            desired_path = tmp_path / "desired.json"
+            current_path = tmp_path / "current.json"
+            desired_path.write_text(
+                json.dumps({"lf_tags": {"sensitivity": ["internal"]}, "grants": []}),
+                encoding="utf-8",
+            )
+            current_path.write_text(
+                json.dumps({"lf_tags": {"sensitivity": ["internal", "restricted"]}, "grants": []}),
+                encoding="utf-8",
+            )
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                exit_code = main(
+                    [
+                        "audit",
+                        "--desired",
+                        str(desired_path),
+                        "--current-snapshot",
+                        str(current_path),
+                        "--fail-on-findings",
+                        "--fail-on-severity",
+                        "error",
+                    ]
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertIn("[warning] LF_TAG_VALUES_UNMANAGED", stdout.getvalue())
+
     def test_cli_audit_writes_github_summary_before_failing_on_findings(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)

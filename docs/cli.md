@@ -141,6 +141,9 @@ lfguard audit \
 Useful options:
 
 - `--fail-on-findings`: return exit code `1` when any finding exists.
+- `--fail-on-severity any|error`: severity that triggers `--fail-on-findings`.
+  The default is `any`, which preserves strict drift gates. Use `error` when
+  unmanaged extras should remain visible warnings but not fail CI.
 - `--github-summary`: append a Markdown audit report to the GitHub Actions job
   summary.
 
