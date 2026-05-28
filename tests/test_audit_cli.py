@@ -250,6 +250,30 @@ class AuditCliTests(unittest.TestCase):
             self.assertEqual(len(desired.resource_tags), 1)
             self.assertEqual(len(desired.grants), 1)
 
+    def test_cli_init_infers_yaml_format_from_output_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output_path = Path(tmp) / "policy" / "desired.yaml"
+
+            exit_code = main(["init", "--output-file", str(output_path)])
+
+            text = output_path.read_text(encoding="utf-8")
+            self.assertEqual(exit_code, 0)
+            self.assertIn("lf_tags:", text)
+            self.assertIn("domain:", text)
+            self.assertIn("- analytics", text)
+            self.assertIn("resource_tags:", text)
+            self.assertFalse(text.lstrip().startswith("{"))
+
+    def test_cli_init_json_format_overrides_yaml_extension(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output_path = Path(tmp) / "desired.yaml"
+
+            exit_code = main(["init", "--output-file", str(output_path), "--format", "json"])
+
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual(exit_code, 0)
+            self.assertIn("lf_tags", payload)
+
     def test_cli_init_refuses_to_overwrite_without_force(self):
         with tempfile.TemporaryDirectory() as tmp:
             output_path = Path(tmp) / "desired.json"

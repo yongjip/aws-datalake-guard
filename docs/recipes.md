@@ -19,6 +19,12 @@ database, table, and tag values with your environment's names.
 lfguard init --output-file policy/desired.json
 ```
 
+Use `.yaml` or `.yml` when your policy repository stores desired state as YAML:
+
+```bash
+lfguard init --output-file policy/desired.yaml
+```
+
 ## Use the JSON Schema
 
 Write the schema to your policy directory and point your editor or CI validator

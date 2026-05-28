@@ -147,6 +147,12 @@ Create a starter desired-state file:
 lfguard init --output-file policy/desired.json
 ```
 
+Generate a YAML starter when your policy repo uses YAML:
+
+```bash
+lfguard init --output-file policy/desired.yaml
+```
+
 Check whether optional AWS/YAML integrations are installed:
 
 ```bash

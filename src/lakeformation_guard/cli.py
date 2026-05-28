@@ -15,7 +15,7 @@ from typing import Any, Iterable, Optional, Sequence
 from ._version import __version__
 from .audit import AuditFinding, audit
 from .aws import AWSLakeFormationAdapter
-from .io import StateFormatError, dumps_json, load_current, load_desired
+from .io import StateFormatError, dumps_json, dumps_yaml, load_current, load_desired
 from .models import CurrentState, DesiredState, GuardrailState
 from .planner import Plan, PlanOptions, plan
 from .schema import state_json_schema
@@ -60,7 +60,12 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command")
 
     init_parser = subparsers.add_parser("init", help="Generate a starter desired-state policy file.")
-    init_parser.add_argument("--output-file", help="Write starter policy JSON to this file instead of stdout.")
+    init_parser.add_argument("--output-file", help="Write starter policy to this file instead of stdout.")
+    init_parser.add_argument(
+        "--format",
+        choices=("json", "yaml"),
+        help="Starter policy output format. Defaults to the output file extension, or json for stdout.",
+    )
     init_parser.add_argument("--force", action="store_true", help="Overwrite the output file if it already exists.")
 
     schema_parser = subparsers.add_parser("schema", help="Emit the JSON Schema for desired/current state files.")
@@ -126,7 +131,8 @@ def _cmd_plan(args: argparse.Namespace) -> int:
 
 
 def _cmd_init(args: argparse.Namespace) -> int:
-    text = dumps_json(_starter_desired_state())
+    output_format = _resolve_init_format(args.format, args.output_file)
+    text = _dump_starter_desired_state(output_format)
     if args.output_file:
         output_path = Path(args.output_file)
         if output_path.exists() and not args.force:
@@ -300,6 +306,21 @@ def _format_validation_summary(prefix: str, summary: dict) -> str:
         "{prefix}: {lf_tags} LF-Tag definition(s), "
         "{resource_tags} resource tag assignment(s), {grants} grant(s)."
     ).format(prefix=prefix, **summary)
+
+
+def _resolve_init_format(requested_format: Optional[str], output_file: Optional[str]) -> str:
+    if requested_format:
+        return requested_format
+    if output_file and Path(output_file).suffix.lower() in {".yaml", ".yml"}:
+        return "yaml"
+    return "json"
+
+
+def _dump_starter_desired_state(output_format: str) -> str:
+    data = _starter_desired_state()
+    if output_format == "yaml":
+        return dumps_yaml(data)
+    return dumps_json(data)
 
 
 def _doctor_report() -> dict:

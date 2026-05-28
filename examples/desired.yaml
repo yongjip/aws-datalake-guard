@@ -1,0 +1,32 @@
+lf_tags:
+  sensitivity:
+    - public
+    - internal
+    - restricted
+  domain:
+    - sales
+    - finance
+resource_tags:
+  - resource:
+      kind: table
+      database: analytics
+      table: orders
+    tags:
+      sensitivity:
+        - internal
+      domain:
+        - sales
+grants:
+  - principal: arn:aws:iam::111122223333:role/Analyst
+    resource:
+      kind: lf_tag_policy
+      resource_type: TABLE
+      expression:
+        domain:
+          - sales
+        sensitivity:
+          - public
+          - internal
+    permissions:
+      - SELECT
+      - DESCRIBE
