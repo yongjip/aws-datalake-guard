@@ -31,3 +31,5 @@
 - Adds CI and release workflow smoke tests for the built wheel.
 - Adds docs tests for internal Markdown links.
 - Adds package metadata tests for version, console scripts, and project URLs.
+- Modernizes the build backend requirement for current setuptools releases.
+- Uses SPDX license metadata without deprecated license classifiers.

@@ -1,4 +1,5 @@
 import configparser
+import re
 import unittest
 from pathlib import Path
 
@@ -15,6 +16,13 @@ class PackageMetadataTests(unittest.TestCase):
     def test_setup_version_matches_imported_version(self):
         self.assertEqual(self.config["metadata"]["version"], __version__)
 
+    def test_build_system_uses_modern_setuptools_backend(self):
+        pyproject = (self.root / "pyproject.toml").read_text(encoding="utf-8")
+
+        self.assertIn('build-backend = "setuptools.build_meta"', pyproject)
+        self.assertRegex(pyproject, r'requires = \["setuptools>=70\.1"\]')
+        self.assertIsNone(re.search(r'"wheel"', pyproject))
+
     def test_changelog_and_publishing_docs_reference_current_version(self):
         changelog = (self.root / "CHANGELOG.md").read_text(encoding="utf-8")
         publishing = (self.root / "docs" / "publishing.md").read_text(encoding="utf-8")
@@ -27,6 +35,14 @@ class PackageMetadataTests(unittest.TestCase):
 
         self.assertIn("lfguard = lakeformation_guard.cli:main", console_scripts)
         self.assertIn("aws-lakeformation-guard = lakeformation_guard.cli:main", console_scripts)
+
+    def test_license_metadata_uses_spdx_expression(self):
+        metadata = self.config["metadata"]
+        classifiers = metadata["classifiers"]
+
+        self.assertEqual(metadata["license"], "Apache-2.0")
+        self.assertIn("license_files = LICENSE", (self.root / "setup.cfg").read_text(encoding="utf-8"))
+        self.assertNotIn("License ::", classifiers)
 
     def test_project_urls_cover_user_evaluation_docs(self):
         project_urls = self.config["metadata"]["project_urls"]
