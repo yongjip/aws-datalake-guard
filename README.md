@@ -321,6 +321,16 @@ lfguard plan \
 In GitHub Actions, append the Markdown report directly to the job summary:
 
 ```bash
+lfguard lint \
+  --desired desired.json \
+  --fail-on-findings \
+  --github-summary
+
+lfguard summary \
+  --desired desired.json \
+  --current-snapshot current.json \
+  --github-summary
+
 lfguard audit \
   --desired desired.json \
   --current-snapshot current.json \

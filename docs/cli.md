@@ -176,7 +176,8 @@ lfguard lint \
   --desired policy/desired.json \
   --output json \
   --output-file artifacts/lfguard-lint.json \
-  --fail-on-findings
+  --fail-on-findings \
+  --github-summary
 ```
 
 Useful options:
@@ -203,7 +204,8 @@ lfguard summary \
   --desired policy/desired.json \
   --current-snapshot snapshots/prod-current.json \
   --output markdown \
-  --output-file artifacts/lfguard-summary.md
+  --output-file artifacts/lfguard-summary.md \
+  --github-summary
 ```
 
 ## `audit`

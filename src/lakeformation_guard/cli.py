@@ -127,6 +127,7 @@ def build_parser() -> argparse.ArgumentParser:
     lint_parser.add_argument("--desired", required=True, help="Desired state JSON/YAML file.")
     _add_output_arg(lint_parser, markdown=True)
     _add_report_output_file_arg(lint_parser)
+    _add_github_summary_arg(lint_parser)
     lint_parser.add_argument("--fail-on-findings", action="store_true", help="Exit with status 1 when any lint finding is present.")
     lint_parser.add_argument(
         "--fail-on-severity",
@@ -140,6 +141,7 @@ def build_parser() -> argparse.ArgumentParser:
     summary_parser.add_argument("--current-snapshot", help="Current state JSON/YAML snapshot.")
     _add_output_arg(summary_parser, markdown=True)
     _add_report_output_file_arg(summary_parser)
+    _add_github_summary_arg(summary_parser)
 
     plan_parser = subparsers.add_parser("plan", help="Produce a conservative Lake Formation change plan.")
     _add_state_args(plan_parser)
@@ -194,6 +196,8 @@ def _cmd_plan(args: argparse.Namespace) -> int:
 def _cmd_lint(args: argparse.Namespace) -> int:
     desired = load_desired(args.desired)
     findings = lint_desired(desired)
+    if args.github_summary:
+        _append_github_summary(_render_lint_findings_markdown(findings))
     _emit_output(_render_lint_findings(findings, args.output), args.output_file, label="lint report")
     if args.fail_on_findings and _should_fail_on_lint_findings(findings, args.fail_on_severity):
         return 1
@@ -206,6 +210,8 @@ def _cmd_summary(args: argparse.Namespace) -> int:
     payload = {"desired": _state_profile(desired)}
     if current:
         payload["current_snapshot"] = _state_profile(current)
+    if args.github_summary:
+        _append_github_summary(_render_state_profiles_markdown(payload))
     _emit_output(_render_state_profiles(payload, args.output), args.output_file, label="summary report")
     return 0
 

@@ -933,6 +933,32 @@ class AuditCliTests(unittest.TestCase):
             self.assertIn("### lfguard lint", stdout.getvalue())
             self.assertIn("DESIRED_STATE_EMPTY", stdout.getvalue())
 
+    def test_cli_lint_writes_github_summary_before_failing_on_findings(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            desired_path = tmp_path / "desired.json"
+            summary_path = tmp_path / "summary.md"
+            desired_path.write_text(json.dumps({"lf_tags": {}, "resource_tags": [], "grants": []}), encoding="utf-8")
+
+            stdout = io.StringIO()
+            with patch.dict(os.environ, {"GITHUB_STEP_SUMMARY": str(summary_path)}):
+                with contextlib.redirect_stdout(stdout):
+                    exit_code = main(
+                        [
+                            "lint",
+                            "--desired",
+                            str(desired_path),
+                            "--fail-on-findings",
+                            "--github-summary",
+                        ]
+                    )
+
+            self.assertEqual(exit_code, 1)
+            self.assertIn("Lint findings:", stdout.getvalue())
+            summary = summary_path.read_text(encoding="utf-8")
+            self.assertIn("### lfguard lint", summary)
+            self.assertIn("DESIRED_STATE_EMPTY", summary)
+
     def test_cli_summary_outputs_policy_inventory_json(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
@@ -996,6 +1022,24 @@ class AuditCliTests(unittest.TestCase):
             self.assertEqual(exit_code, 0)
             self.assertIn("### lfguard summary", stdout.getvalue())
             self.assertIn("| LF-Tag definitions | 1 (sensitivity) |", stdout.getvalue())
+
+    def test_cli_summary_writes_github_summary(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            desired_path = tmp_path / "desired.json"
+            summary_path = tmp_path / "summary.md"
+            desired_path.write_text(json.dumps({"lf_tags": {"sensitivity": ["internal"]}, "grants": []}), encoding="utf-8")
+
+            stdout = io.StringIO()
+            with patch.dict(os.environ, {"GITHUB_STEP_SUMMARY": str(summary_path)}):
+                with contextlib.redirect_stdout(stdout):
+                    exit_code = main(["summary", "--desired", str(desired_path), "--github-summary"])
+
+            self.assertEqual(exit_code, 0)
+            self.assertIn("Desired summary:", stdout.getvalue())
+            summary = summary_path.read_text(encoding="utf-8")
+            self.assertIn("### lfguard summary", summary)
+            self.assertIn("| LF-Tag definitions | 1 (sensitivity) |", summary)
 
     def test_cli_version_outputs_short_command_name(self):
         stdout = io.StringIO()

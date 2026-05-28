@@ -34,14 +34,15 @@ jobs:
         run: lfguard validate --desired policy/desired.yaml
 
       - name: Lint desired policy
-        run: lfguard lint --desired policy/desired.yaml --fail-on-findings
+        run: lfguard lint --desired policy/desired.yaml --fail-on-findings --github-summary
 
       - name: Summarize policy
         run: |
           lfguard summary \
             --desired policy/desired.yaml \
             --output markdown \
-            --output-file artifacts/lfguard-summary.md
+            --output-file artifacts/lfguard-summary.md \
+            --github-summary
 
       - name: Capture current state
         run: |
