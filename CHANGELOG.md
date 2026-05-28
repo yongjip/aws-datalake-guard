@@ -17,3 +17,4 @@
 - Supports LF-Tag definitions, resource tag assignments, and Lake Formation grants.
 - Includes an optional boto3 adapter for live AWS inventory and execution.
 - Ships offline JSON/YAML desired-state workflows and example policy files.
+- Adds an examples guide and PyPI metadata links for first-run discoverability.

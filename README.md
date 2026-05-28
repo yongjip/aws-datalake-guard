@@ -339,6 +339,8 @@ PyPI publisher settings.
   workflow using GitHub OIDC, job summaries, and uploaded report artifacts.
 - [`docs/aws-permissions.md`](docs/aws-permissions.md): suggested minimum IAM
   permissions for read-only and apply roles.
+- [`examples/README.md`](examples/README.md): offline files and commands for a
+  first local audit/plan run.
 
 ## Development
 
