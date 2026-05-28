@@ -37,6 +37,7 @@
 - Adds a roadmap with near-term priorities, evaluation questions, and non-goals.
 - Adds a `sample` command for generating a runnable offline demo after install,
   including a local README with copy-paste commands.
+- Adds JSON, YAML, and combined output formats for generated sample demos.
 - Adds a state-format guide with examples for each supported resource kind.
 - Adds an AWS API coverage guide for live inventory and apply calls.
 - Adds an FAQ for safety, scope, credentials, and adoption questions.

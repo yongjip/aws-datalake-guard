@@ -581,6 +581,42 @@ class AuditCliTests(unittest.TestCase):
             self.assertEqual(plan_exit_code, 0)
             self.assertIn("Plan: 3 change(s), 3 safe, 0 destructive.", plan_stdout.getvalue())
 
+    def test_cli_sample_can_write_yaml_demo_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output_dir = Path(tmp) / "lfguard-demo"
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                exit_code = main(["sample", "--output-dir", str(output_dir), "--format", "yaml"])
+
+            desired_path = output_dir / "desired.yaml"
+            current_path = output_dir / "current-snapshot.yaml"
+            readme = (output_dir / "README.md").read_text(encoding="utf-8")
+
+            self.assertEqual(exit_code, 0)
+            self.assertTrue(desired_path.exists())
+            self.assertTrue(current_path.exists())
+            self.assertFalse((output_dir / "desired.json").exists())
+            self.assertIn("lfguard[yaml]", readme)
+            self.assertIn("desired.yaml", readme)
+            self.assertIn("current-snapshot.yaml", readme)
+            self.assertIn("desired.yaml", stdout.getvalue())
+
+    def test_cli_sample_can_write_both_json_and_yaml_demo_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output_dir = Path(tmp) / "lfguard-demo"
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                exit_code = main(["sample", "--output-dir", str(output_dir), "--format", "both"])
+            readme = (output_dir / "README.md").read_text(encoding="utf-8")
+
+            self.assertEqual(exit_code, 0)
+            for name in ("desired.json", "current-snapshot.json", "desired.yaml", "current-snapshot.yaml"):
+                self.assertTrue((output_dir / name).exists(), name)
+            self.assertIn("both JSON and YAML state files", readme)
+            self.assertIn("YAML state files require", readme)
+
     def test_cli_sample_refuses_to_overwrite_without_force(self):
         with tempfile.TemporaryDirectory() as tmp:
             output_dir = Path(tmp) / "lfguard-demo"

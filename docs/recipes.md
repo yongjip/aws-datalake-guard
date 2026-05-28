@@ -47,6 +47,14 @@ The generated current snapshot is deliberately incomplete, so the plan contains
 safe additive changes. The sample directory also includes a local `README.md`
 with validate, audit, plan, and report commands.
 
+Generate a YAML demo when your policy repo uses YAML:
+
+```bash
+lfguard sample --output-dir lfguard-demo-yaml --format yaml
+```
+
+Reading the generated YAML files requires `python -m pip install "lfguard[yaml]"`.
+
 ## Use the JSON Schema
 
 Write the schema to your policy directory and point your editor or CI validator

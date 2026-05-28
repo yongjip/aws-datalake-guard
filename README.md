@@ -164,6 +164,12 @@ Generate paired offline sample files for a local demo:
 lfguard sample --output-dir lfguard-demo
 ```
 
+Generate YAML sample files when your policy repository uses YAML:
+
+```bash
+lfguard sample --output-dir lfguard-demo-yaml --format yaml
+```
+
 Generate a YAML starter when your policy repo uses YAML:
 
 ```bash

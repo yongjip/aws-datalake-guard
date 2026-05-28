@@ -70,6 +70,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     sample_parser = subparsers.add_parser("sample", help="Generate offline demo desired/current state files.")
     sample_parser.add_argument("--output-dir", required=True, help="Directory to write sample files into.")
+    sample_parser.add_argument(
+        "--format",
+        choices=("json", "yaml", "both"),
+        default="json",
+        help="Sample state file format. Defaults to json.",
+    )
     sample_parser.add_argument("--force", action="store_true", help="Overwrite sample files if they already exist.")
 
     schema_parser = subparsers.add_parser("schema", help="Emit the JSON Schema for desired/current state files.")
@@ -167,11 +173,7 @@ def _cmd_init(args: argparse.Namespace) -> int:
 
 def _cmd_sample(args: argparse.Namespace) -> int:
     output_dir = Path(args.output_dir)
-    files = {
-        "desired.json": dumps_json(_sample_desired_state()),
-        "current-snapshot.json": dumps_json(_sample_current_state()),
-        "README.md": _sample_readme(),
-    }
+    files = _sample_files(args.format)
     existing = [output_dir / name for name in files if (output_dir / name).exists()]
     if existing and not args.force:
         raise RuntimeError(
@@ -188,7 +190,8 @@ def _cmd_sample(args: argparse.Namespace) -> int:
 
     print("Wrote lfguard sample files to {}.\n".format(output_dir))
     print("Run:")
-    print("  lfguard plan --desired {}/desired.json --current-snapshot {}/current-snapshot.json".format(output_dir, output_dir))
+    desired_name, current_name = _sample_primary_files(args.format)
+    print("  lfguard plan --desired {}/{} --current-snapshot {}/{}".format(output_dir, desired_name, output_dir, current_name))
     print("\nSee {}/README.md for more commands.".format(output_dir))
     return 0
 
@@ -549,29 +552,79 @@ def _sample_current_state() -> dict:
     }
 
 
-def _sample_readme() -> str:
+def _sample_files(output_format: str) -> dict:
+    desired = _sample_desired_state()
+    current = _sample_current_state()
+    files = {}
+    if output_format in {"json", "both"}:
+        files["desired.json"] = dumps_json(desired)
+        files["current-snapshot.json"] = dumps_json(current)
+    if output_format in {"yaml", "both"}:
+        files["desired.yaml"] = dumps_yaml(desired)
+        files["current-snapshot.yaml"] = dumps_yaml(current)
+    desired_name, current_name = _sample_primary_files(output_format)
+    files["README.md"] = _sample_readme(
+        desired_name,
+        current_name,
+        include_yaml_note=output_format in {"yaml", "both"},
+        include_both_note=output_format == "both",
+    )
+    return files
+
+
+def _sample_primary_files(output_format: str) -> tuple:
+    if output_format == "yaml":
+        return "desired.yaml", "current-snapshot.yaml"
+    return "desired.json", "current-snapshot.json"
+
+
+def _sample_readme(
+    desired_name: str,
+    current_name: str,
+    *,
+    include_yaml_note: bool = False,
+    include_both_note: bool = False,
+) -> str:
+    yaml_note = ""
+    if include_yaml_note:
+        yaml_note = """## YAML Support
+
+YAML state files require the optional YAML extra when you read them:
+
+```bash
+python -m pip install "lfguard[yaml]"
+```
+
+"""
+    both_note = ""
+    if include_both_note:
+        both_note = """This directory includes both JSON and YAML state files. The JSON commands work
+with the base `lfguard` install.
+
+"""
     return """# lfguard Demo
 
 This directory contains a desired Lake Formation guardrail policy and a
 deliberately incomplete current-state snapshot. It is safe to use without AWS
 credentials.
 
+{both_note}{yaml_note}
 ## Validate
 
 ```bash
-lfguard validate --desired desired.json --current-snapshot current-snapshot.json
+lfguard validate --desired {desired_name} --current-snapshot {current_name}
 ```
 
 ## Audit Drift
 
 ```bash
-lfguard audit --desired desired.json --current-snapshot current-snapshot.json
+lfguard audit --desired {desired_name} --current-snapshot {current_name}
 ```
 
 ## Plan Safe Changes
 
 ```bash
-lfguard plan --desired desired.json --current-snapshot current-snapshot.json
+lfguard plan --desired {desired_name} --current-snapshot {current_name}
 ```
 
 Expected summary:
@@ -584,18 +637,23 @@ Plan: 3 change(s), 3 safe, 0 destructive.
 
 ```bash
 lfguard audit \\
-  --desired desired.json \\
-  --current-snapshot current-snapshot.json \\
+  --desired {desired_name} \\
+  --current-snapshot {current_name} \\
   --output json \\
   --output-file lfguard-audit.json
 
 lfguard plan \\
-  --desired desired.json \\
-  --current-snapshot current-snapshot.json \\
+  --desired {desired_name} \\
+  --current-snapshot {current_name} \\
   --output markdown \\
   --output-file lfguard-plan.md
 ```
-"""
+""".format(
+        both_note=both_note,
+        current_name=current_name,
+        desired_name=desired_name,
+        yaml_note=yaml_note,
+    )
 
 
 def _print_plan(change_plan: Plan, output: str, *, prefix: Optional[str] = None) -> None:

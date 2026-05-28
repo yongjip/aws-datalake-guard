@@ -100,6 +100,8 @@ Useful options:
 
 - `--output-dir PATH`: directory to write `desired.json` and
   `current-snapshot.json`, plus a local `README.md` with demo commands.
+- `--format json|yaml|both`: choose JSON sample files, YAML sample files, or
+  both. YAML files require `lfguard[yaml]` when read by later commands.
 - `--force`: overwrite existing sample files.
 
 ## `schema`

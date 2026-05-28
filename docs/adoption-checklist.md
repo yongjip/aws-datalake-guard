@@ -18,6 +18,14 @@ lfguard plan \
 
 This proves the CLI works without AWS credentials.
 
+For YAML policy repositories, generate a YAML demo after installing the YAML
+extra:
+
+```bash
+python -m pip install "lfguard[yaml]"
+lfguard sample --output-dir lfguard-demo-yaml --format yaml
+```
+
 ## 2. Draft Desired State
 
 Create a starter policy and replace the example names with sanitized values from
