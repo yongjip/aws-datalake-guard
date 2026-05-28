@@ -26,6 +26,14 @@ By default, plans only add missing definitions, tag assignments, and permissions
 Potentially destructive changes, such as revoking permissions or removing tag
 values, are omitted unless the matching allow flag is set.
 
+## What it does not manage
+
+`lfguard` is deliberately scoped to Lake Formation policy guardrails. It does
+not create IAM principals, register data lake locations, configure
+cross-account sharing, crawl the whole Glue Data Catalog, or replace Terraform,
+CloudFormation, CDK, or IAM administration. Live inventory is scoped by the
+desired-state file so drift checks stay focused and reviewable.
+
 ## Why use it
 
 - Reviewable plans before touching production Lake Formation state.
