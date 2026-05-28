@@ -11,6 +11,7 @@
 - Adds a `--fail-on-changes` option for CI plan gates.
 - Adds `--output-file` report capture for audit, plan, and apply workflows.
 - Documents GitHub Actions report artifact uploads and preserves CI build artifacts.
+- Adds a CLI reference with command semantics, common options, and exit codes.
 - Adds YAML starter policy generation and a YAML example policy.
 - Ships a JSON Schema for desired/current state files.
 - Adds importable planning and audit APIs under `lakeformation_guard`.

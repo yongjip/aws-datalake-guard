@@ -354,6 +354,8 @@ PyPI publisher settings.
 
 ## More docs
 
+- [`docs/cli.md`](docs/cli.md): command reference, common options, and exit
+  codes.
 - [`docs/recipes.md`](docs/recipes.md): audit-only, CI, and controlled apply
   workflows.
 - [`docs/schema.json`](docs/schema.json): JSON Schema for desired/current state
