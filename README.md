@@ -258,6 +258,17 @@ lfguard apply \
   --region ap-northeast-2
 ```
 
+Save the dry-run report before executing:
+
+```bash
+lfguard apply \
+  --desired desired.yaml \
+  --profile prod \
+  --region ap-northeast-2 \
+  --output markdown \
+  --output-file artifacts/lfguard-apply-dry-run.md
+```
+
 Execute non-destructive changes:
 
 ```bash
@@ -266,6 +277,18 @@ lfguard apply \
   --profile prod \
   --region ap-northeast-2 \
   --execute
+```
+
+Save machine-readable apply results:
+
+```bash
+lfguard apply \
+  --desired desired.yaml \
+  --profile prod \
+  --region ap-northeast-2 \
+  --execute \
+  --output json \
+  --output-file artifacts/lfguard-apply.json
 ```
 
 Allow revokes only when that is the intended maintenance operation:

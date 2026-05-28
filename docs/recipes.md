@@ -149,6 +149,17 @@ lfguard apply \
   --region ap-northeast-2
 ```
 
+Save the dry-run as a review artifact:
+
+```bash
+lfguard apply \
+  --desired policy/desired.yaml \
+  --profile prod \
+  --region ap-northeast-2 \
+  --output markdown \
+  --output-file artifacts/lfguard-apply-dry-run.md
+```
+
 Execute only after reviewing the plan:
 
 ```bash
@@ -157,6 +168,18 @@ lfguard apply \
   --profile prod \
   --region ap-northeast-2 \
   --execute
+```
+
+For change records, write the executed plan and adapter responses as JSON:
+
+```bash
+lfguard apply \
+  --desired policy/desired.yaml \
+  --profile prod \
+  --region ap-northeast-2 \
+  --execute \
+  --output json \
+  --output-file artifacts/lfguard-apply.json
 ```
 
 ## Review Destructive Operations Separately

@@ -102,6 +102,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_state_args(apply_parser)
     _add_aws_args(apply_parser)
     _add_output_arg(apply_parser, markdown=True)
+    _add_report_output_file_arg(apply_parser)
     _add_github_summary_arg(apply_parser)
     _add_plan_option_args(apply_parser)
     apply_parser.add_argument("--execute", action="store_true", help="Apply the computed plan. Defaults to dry-run.")
@@ -213,7 +214,11 @@ def _cmd_apply(args: argparse.Namespace) -> int:
     if not args.execute:
         if args.github_summary:
             _append_github_summary(_render_plan_markdown(change_plan, prefix="Dry run: no changes applied."))
-        _print_plan(change_plan, args.output, prefix="Dry run: no changes applied.")
+        _emit_output(
+            _render_plan(change_plan, args.output, prefix="Dry run: no changes applied."),
+            args.output_file,
+            label="apply report",
+        )
         return 0
 
     adapter = _aws_adapter(args)
@@ -225,11 +230,11 @@ def _cmd_apply(args: argparse.Namespace) -> int:
     applied_count = sum(1 for result in results if result.applied)
     if args.github_summary:
         _append_github_summary(_render_plan_markdown(change_plan, prefix="Applied {} change(s).".format(applied_count)))
-    if args.output == "json":
-        print(dumps_json({"plan": change_plan.to_dict(), "results": [result.to_dict() for result in results]}), end="")
-    else:
-        print("Applied {} change(s).".format(applied_count))
-        _print_plan(change_plan, args.output)
+    _emit_output(
+        _render_apply(change_plan, results, args.output, applied_count=applied_count),
+        args.output_file,
+        label="apply report",
+    )
     return 0
 
 
@@ -499,6 +504,12 @@ def _render_plan_markdown(change_plan: Plan, *, prefix: Optional[str] = None) ->
             )
         )
     return "\n".join(lines) + "\n"
+
+
+def _render_apply(change_plan: Plan, results: Iterable[Any], output: str, *, applied_count: int) -> str:
+    if output == "json":
+        return dumps_json({"plan": change_plan.to_dict(), "results": [result.to_dict() for result in results]})
+    return _render_plan(change_plan, output, prefix="Applied {} change(s).".format(applied_count))
 
 
 def _print_findings(findings: Iterable[AuditFinding], output: str) -> None:

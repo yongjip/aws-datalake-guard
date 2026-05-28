@@ -8,6 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from lakeformation_guard import CurrentState, DesiredState, audit
+from lakeformation_guard.aws import ApplyResult
 from lakeformation_guard.cli import main
 
 
@@ -594,6 +595,91 @@ class AuditCliTests(unittest.TestCase):
             payload = json.loads(output_path.read_text(encoding="utf-8"))
             self.assertEqual(payload["lf_tags"], {"sensitivity": ["internal"]})
             self.assertEqual(payload["grants"][0]["resource"]["database"], "analytics")
+
+    def test_cli_apply_dry_run_writes_report_output_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            desired_path = tmp_path / "desired.json"
+            current_path = tmp_path / "current.json"
+            output_path = tmp_path / "artifacts" / "lfguard-apply.md"
+            desired_path.write_text(
+                json.dumps({"lf_tags": {"sensitivity": ["internal"]}, "grants": []}),
+                encoding="utf-8",
+            )
+            current_path.write_text(json.dumps({"lf_tags": {}, "grants": []}), encoding="utf-8")
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                exit_code = main(
+                    [
+                        "apply",
+                        "--desired",
+                        str(desired_path),
+                        "--current-snapshot",
+                        str(current_path),
+                        "--output",
+                        "markdown",
+                        "--output-file",
+                        str(output_path),
+                    ]
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stdout.getvalue(), "")
+            report = output_path.read_text(encoding="utf-8")
+            self.assertIn("Dry run: no changes applied.", report)
+            self.assertIn("### lfguard plan", report)
+            self.assertIn("| safe | lf_tag.create | lf_tag:sensitivity | LF-Tag is missing |", report)
+
+    def test_cli_apply_execute_writes_json_output_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            desired_path = tmp_path / "desired.json"
+            current_path = tmp_path / "current.json"
+            output_path = tmp_path / "artifacts" / "lfguard-apply.json"
+            desired_path.write_text(
+                json.dumps({"lf_tags": {"sensitivity": ["internal"]}, "grants": []}),
+                encoding="utf-8",
+            )
+            current_path.write_text(json.dumps({"lf_tags": {}, "grants": []}), encoding="utf-8")
+            apply_result = ApplyResult(
+                action="lf_tag.create",
+                target="lf_tag:sensitivity",
+                applied=True,
+                response={"ok": True},
+            )
+
+            stdout = io.StringIO()
+            with patch("lakeformation_guard.cli.AWSLakeFormationAdapter") as adapter_class:
+                adapter_class.from_boto3.return_value.apply.return_value = [apply_result]
+                with contextlib.redirect_stdout(stdout):
+                    exit_code = main(
+                        [
+                            "apply",
+                            "--desired",
+                            str(desired_path),
+                            "--current-snapshot",
+                            str(current_path),
+                            "--execute",
+                            "--output",
+                            "json",
+                            "--output-file",
+                            str(output_path),
+                            "--profile",
+                            "prod",
+                        ]
+                    )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stdout.getvalue(), "")
+            adapter_class.from_boto3.assert_called_once_with(
+                profile_name="prod",
+                region_name=None,
+                catalog_id=None,
+            )
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["plan"]["summary"], {"total": 1, "safe": 1, "destructive": 0})
+            self.assertEqual(payload["results"], [apply_result.to_dict()])
 
 
 if __name__ == "__main__":
