@@ -40,3 +40,8 @@ jobs:
         run: python -m build
       - name: Check distributions
         run: python -m twine check dist/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lfguard-distributions
+          path: dist/
+          if-no-files-found: error

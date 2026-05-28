@@ -336,7 +336,7 @@ PyPI publisher settings.
 - [`docs/schema.json`](docs/schema.json): JSON Schema for desired/current state
   files.
 - [`docs/github-actions.md`](docs/github-actions.md): a copy-paste drift check
-  workflow using GitHub OIDC.
+  workflow using GitHub OIDC, job summaries, and uploaded report artifacts.
 - [`docs/aws-permissions.md`](docs/aws-permissions.md): suggested minimum IAM
   permissions for read-only and apply roles.
 

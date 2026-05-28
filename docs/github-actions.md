@@ -52,10 +52,25 @@ jobs:
           lfguard audit \
             --desired policy/desired.yaml \
             --current-snapshot snapshots/prod-current.json \
+            --output markdown \
+            --output-file artifacts/lfguard-audit.md \
             --fail-on-findings \
             --github-summary
+
+      - name: Upload lfguard reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lfguard-reports
+          path: artifacts/
+          if-no-files-found: ignore
+          retention-days: 14
 ```
 
 For pull requests from forks, avoid granting AWS credentials directly to the PR
 workflow. A safer pattern is to run drift checks on a schedule, on manual
 dispatch, or after changes are merged to a protected branch.
+
+`lfguard audit` writes the report file before returning a non-zero status for
+`--fail-on-findings`, so the artifact upload step still has evidence to attach
+when drift breaks the job.
