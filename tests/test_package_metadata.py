@@ -73,6 +73,19 @@ class PackageMetadataTests(unittest.TestCase):
         ):
             self.assertIn("{} =".format(label), project_urls)
 
+    def test_keywords_cover_discovery_terms(self):
+        keywords = self.config["metadata"]["keywords"]
+
+        for keyword in (
+            "policy-as-code",
+            "drift-detection",
+            "data-governance",
+            "data-lake",
+            "aws-glue",
+            "permissions",
+        ):
+            self.assertIn(keyword, keywords)
+
     def test_ci_and_release_smoke_cover_primary_cli_paths(self):
         workflow_paths = (
             self.root / ".github" / "workflows" / "ci.yml",

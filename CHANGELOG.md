@@ -39,6 +39,8 @@
 - Includes an optional boto3 adapter for live AWS inventory and execution.
 - Ships offline JSON/YAML desired-state workflows and example policy files.
 - Adds an examples guide and PyPI metadata links for first-run discoverability.
+- Adds PyPI discovery keywords for policy-as-code, drift detection, data lake,
+  and data governance searches.
 - Adds an adoption checklist for moving from offline demo to CI and controlled
   apply workflows.
 - Adds a report-format guide for audit, plan, apply, and CI artifacts.
