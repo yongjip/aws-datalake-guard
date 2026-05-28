@@ -336,6 +336,49 @@ class AuditCliTests(unittest.TestCase):
                 ["LF_TAG_VALUES_MISSING", "LF_TAG_VALUES_UNMANAGED"],
             )
 
+    def test_cli_audit_outputs_sarif(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            desired_path = tmp_path / "desired.json"
+            current_path = tmp_path / "current.json"
+            desired_path.write_text(
+                json.dumps({"lf_tags": {"sensitivity": ["internal"]}, "grants": []}),
+                encoding="utf-8",
+            )
+            current_path.write_text(
+                json.dumps({"lf_tags": {"sensitivity": ["restricted"]}, "grants": []}),
+                encoding="utf-8",
+            )
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                exit_code = main(
+                    [
+                        "audit",
+                        "--desired",
+                        str(desired_path),
+                        "--current-snapshot",
+                        str(current_path),
+                        "--output",
+                        "sarif",
+                    ]
+                )
+
+            payload = json.loads(stdout.getvalue())
+            run = payload["runs"][0]
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(payload["version"], "2.1.0")
+            self.assertEqual(run["tool"]["driver"]["name"], "lfguard")
+            self.assertEqual(
+                [result["ruleId"] for result in run["results"]],
+                ["LF_TAG_VALUES_MISSING", "LF_TAG_VALUES_UNMANAGED"],
+            )
+            self.assertEqual([result["level"] for result in run["results"]], ["error", "warning"])
+            self.assertEqual(
+                run["results"][0]["locations"][0]["physicalLocation"]["artifactLocation"]["uri"],
+                str(desired_path),
+            )
+
     def test_cli_audit_writes_report_output_file_before_failing_on_findings(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)

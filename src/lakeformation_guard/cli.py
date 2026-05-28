@@ -101,7 +101,7 @@ def build_parser() -> argparse.ArgumentParser:
     audit_parser = subparsers.add_parser("audit", help="Report drift between desired and current Lake Formation state.")
     _add_state_args(audit_parser)
     _add_aws_args(audit_parser)
-    _add_output_arg(audit_parser, markdown=True)
+    _add_output_arg(audit_parser, markdown=True, sarif=True)
     _add_report_output_file_arg(audit_parser)
     _add_github_summary_arg(audit_parser)
     audit_parser.add_argument("--fail-on-findings", action="store_true", help="Exit with status 1 when any finding is present.")
@@ -149,7 +149,7 @@ def _cmd_audit(args: argparse.Namespace) -> int:
     findings = audit(desired, current)
     if args.github_summary:
         _append_github_summary(_render_findings_markdown(findings))
-    _emit_output(_render_findings(findings, args.output), args.output_file, label="audit report")
+    _emit_output(_render_findings(findings, args.output, sarif_uri=args.desired), args.output_file, label="audit report")
     if args.fail_on_findings and _should_fail_on_findings(findings, args.fail_on_severity):
         return 1
     return 0
@@ -305,8 +305,12 @@ def _add_aws_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--catalog-id", help="AWS Glue Data Catalog ID.")
 
 
-def _add_output_arg(parser: argparse.ArgumentParser, *, markdown: bool = False) -> None:
-    choices = ("text", "json", "markdown") if markdown else ("text", "json")
+def _add_output_arg(parser: argparse.ArgumentParser, *, markdown: bool = False, sarif: bool = False) -> None:
+    choices = ["text", "json"]
+    if markdown:
+        choices.append("markdown")
+    if sarif:
+        choices.append("sarif")
     parser.add_argument("--output", choices=choices, default="text", help="Output format.")
 
 
@@ -778,7 +782,7 @@ def _print_findings(findings: Iterable[AuditFinding], output: str) -> None:
     print(_render_findings(findings, output), end="")
 
 
-def _render_findings(findings: Iterable[AuditFinding], output: str) -> str:
+def _render_findings(findings: Iterable[AuditFinding], output: str, *, sarif_uri: Optional[str] = None) -> str:
     findings = tuple(findings)
     summary = _finding_summary(findings)
     if output == "json":
@@ -788,6 +792,8 @@ def _render_findings(findings: Iterable[AuditFinding], output: str) -> str:
                 "findings": [finding.to_dict() for finding in findings],
             }
         )
+    if output == "sarif":
+        return dumps_json(_findings_to_sarif(findings, sarif_uri=sarif_uri))
     if output == "markdown":
         return _render_findings_markdown(findings)
     lines = []
@@ -837,6 +843,71 @@ def _render_findings_markdown(findings: Iterable[AuditFinding]) -> str:
             )
         )
     return "\n".join(lines) + "\n"
+
+
+def _findings_to_sarif(findings: Iterable[AuditFinding], *, sarif_uri: Optional[str] = None) -> dict:
+    findings = tuple(findings)
+    rules = []
+    for code in sorted({finding.code for finding in findings}):
+        rule_findings = [finding for finding in findings if finding.code == code]
+        severity = "error" if any(finding.severity == "error" for finding in rule_findings) else "warning"
+        rules.append(
+            {
+                "id": code,
+                "name": code,
+                "shortDescription": {"text": rule_findings[0].message},
+                "defaultConfiguration": {"level": _sarif_level(severity)},
+            }
+        )
+    return {
+        "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+        "version": "2.1.0",
+        "runs": [
+            {
+                "tool": {
+                    "driver": {
+                        "name": "lfguard",
+                        "version": __version__,
+                        "informationUri": "https://github.com/yongjip/aws-datalake-guard",
+                        "rules": rules,
+                    }
+                },
+                "results": [
+                    {
+                        "ruleId": finding.code,
+                        "level": _sarif_level(finding.severity),
+                        "message": {"text": "{}: {}".format(finding.target, finding.message)},
+                        "locations": [_sarif_location(finding, sarif_uri)],
+                        "properties": {
+                            "severity": finding.severity,
+                            "target": finding.target,
+                            "details": dict(finding.details),
+                        },
+                    }
+                    for finding in findings
+                ],
+            }
+        ],
+    }
+
+
+def _sarif_level(severity: str) -> str:
+    if severity == "error":
+        return "error"
+    if severity == "warning":
+        return "warning"
+    return "note"
+
+
+def _sarif_location(finding: AuditFinding, sarif_uri: Optional[str]) -> dict:
+    artifact_uri = sarif_uri or "lfguard-audit"
+    return {
+        "physicalLocation": {
+            "artifactLocation": {"uri": artifact_uri},
+            "region": {"snippet": {"text": finding.target}},
+        },
+        "logicalLocations": [{"fullyQualifiedName": finding.target}],
+    }
 
 
 def _finding_summary(findings: Iterable[AuditFinding]) -> dict:

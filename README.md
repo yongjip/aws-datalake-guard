@@ -32,8 +32,8 @@ values, are omitted unless the matching allow flag is set.
 - Conservative defaults that avoid accidental revokes and tag removals.
 - Works offline from snapshots, which makes CI drift checks possible.
 - Keeps the Python API dependency-light while isolating boto3 in the AWS adapter.
-- Produces text, JSON, and Markdown output suitable for pull request comments,
-  release checks, and platform automation.
+- Produces text, JSON, Markdown, and SARIF output suitable for pull request
+  comments, release checks, code scanning, and platform automation.
 
 ## Common use cases
 
@@ -282,6 +282,16 @@ lfguard audit \
 
 Audit JSON includes `summary.total`, `summary.errors`, and `summary.warnings`
 so CI jobs can show drift counts without parsing individual findings.
+
+Write a SARIF audit report for security and governance dashboards:
+
+```bash
+lfguard audit \
+  --desired desired.json \
+  --current-snapshot current.json \
+  --output sarif \
+  --output-file artifacts/lfguard-audit.sarif
+```
 
 Use Markdown output for pull request comments or GitHub Actions summaries:
 

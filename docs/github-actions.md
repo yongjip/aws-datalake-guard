@@ -58,6 +58,12 @@ jobs:
           lfguard audit \
             --desired policy/desired.yaml \
             --current-snapshot snapshots/prod-current.json \
+            --output sarif \
+            --output-file artifacts/lfguard-audit.sarif
+
+          lfguard audit \
+            --desired policy/desired.yaml \
+            --current-snapshot snapshots/prod-current.json \
             --output markdown \
             --output-file artifacts/lfguard-audit.md \
             --fail-on-findings \
@@ -79,4 +85,5 @@ dispatch, or after changes are merged to a protected branch.
 
 `lfguard audit` writes the report file before returning a non-zero status for
 `--fail-on-findings`, so the artifact upload step still has evidence to attach
-when drift breaks the job.
+when drift breaks the job. The SARIF artifact can also be uploaded to systems
+that ingest static-analysis or governance findings.

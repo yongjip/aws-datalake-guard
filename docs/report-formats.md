@@ -1,9 +1,9 @@
 # Report Formats
 
 `lfguard` reports are designed for both humans and CI systems. Commands that
-support reports accept `--output text`, `--output json`, or `--output markdown`
-where appropriate, and `--output-file PATH` writes the same report without
-printing to stdout.
+support reports accept `--output text`, `--output json`, `--output markdown`,
+or `--output sarif` where appropriate, and `--output-file PATH` writes the same
+report without printing to stdout.
 
 ## Audit Reports
 
@@ -63,6 +63,21 @@ which makes them suitable for GitHub Actions job summaries:
 | --- | --- | --- | --- |
 | error | LF_TAG_VALUES_MISSING | lf_tag:sensitivity | Desired LF-Tag values are missing |
 ```
+
+SARIF audit reports use SARIF 2.1.0 for systems that already ingest static
+analysis or security scan results:
+
+```bash
+lfguard audit \
+  --desired examples/desired.json \
+  --current-snapshot examples/current-snapshot.json \
+  --output sarif \
+  --output-file artifacts/lfguard-audit.sarif
+```
+
+Each SARIF result includes the finding code as `ruleId`, the finding severity
+as the SARIF level, the target resource as a logical location, and the finding
+details under `properties.details`.
 
 ## Plan Reports
 

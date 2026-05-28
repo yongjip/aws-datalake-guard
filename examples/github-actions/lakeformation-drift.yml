@@ -45,6 +45,12 @@ jobs:
           lfguard audit \
             --desired policy/desired.yaml \
             --current-snapshot snapshots/prod-current.json \
+            --output sarif \
+            --output-file artifacts/lfguard-audit.sarif
+
+          lfguard audit \
+            --desired policy/desired.yaml \
+            --current-snapshot snapshots/prod-current.json \
             --output markdown \
             --output-file artifacts/lfguard-audit.md \
             --fail-on-findings \

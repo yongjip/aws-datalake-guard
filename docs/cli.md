@@ -32,7 +32,8 @@ State-aware commands use these options:
 - `--profile NAME`: AWS profile for live operations.
 - `--region NAME`: AWS region for live operations.
 - `--catalog-id ID`: Glue Data Catalog ID.
-- `--output text|json|markdown`: output format where supported.
+- `--output text|json|markdown|sarif`: output format where supported. `audit`
+  supports SARIF; `audit`, `plan`, and `apply` support Markdown.
 - `--output-file PATH`: write the command report to a file instead of stdout
   where supported. `doctor`, `validate`, `audit`, `plan`, and `apply` support
   this for reports; `init`, `schema`, and `snapshot` use it for generated files.
@@ -179,6 +180,8 @@ Useful options:
 
 - Audit text, JSON, and Markdown output include a severity summary. JSON reports
   expose `summary.total`, `summary.errors`, and `summary.warnings`.
+- `--output sarif`: write audit findings as SARIF 2.1.0 for code scanning,
+  governance dashboards, or artifact ingestion.
 - `--fail-on-findings`: return exit code `1` when any finding exists.
 - `--fail-on-severity any|error`: severity that triggers `--fail-on-findings`.
   The default is `any`, which preserves strict drift gates. Use `error` when

@@ -6,6 +6,7 @@
 - Adds the `lfguard` CLI with `init`, `schema`, `validate`, `audit`, `plan`,
   `sample`, `doctor`, `snapshot`, and conservative `apply` commands.
 - Adds text, JSON, and Markdown output for reviewable audit and plan workflows.
+- Adds SARIF output for audit findings.
 - Adds an offline install check for optional AWS and YAML integrations.
 - Adds `doctor --require` checks for failing CI when required optional extras
   are missing.
