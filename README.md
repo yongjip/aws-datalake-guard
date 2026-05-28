@@ -72,12 +72,18 @@ Check the local install and optional extras without making AWS calls:
 lfguard doctor
 ```
 
-Try the included offline example with no AWS credentials:
+Generate a runnable offline demo with no AWS credentials:
+
+```bash
+lfguard sample --output-dir lfguard-demo
+```
+
+Plan against the generated desired state and deliberately incomplete snapshot:
 
 ```bash
 lfguard plan \
-  --desired examples/desired.json \
-  --current-snapshot examples/current-snapshot.json
+  --desired lfguard-demo/desired.json \
+  --current-snapshot lfguard-demo/current-snapshot.json
 ```
 
 Expected output:
@@ -145,6 +151,12 @@ Create a starter desired-state file:
 
 ```bash
 lfguard init --output-file policy/desired.json
+```
+
+Generate paired offline sample files for a local demo:
+
+```bash
+lfguard sample --output-dir lfguard-demo
 ```
 
 Generate a YAML starter when your policy repo uses YAML:

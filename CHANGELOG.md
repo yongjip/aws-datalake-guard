@@ -4,7 +4,7 @@
 
 - Initial release of `lfguard`.
 - Adds the `lfguard` CLI with `init`, `schema`, `validate`, `audit`, `plan`,
-  `doctor`, `snapshot`, and conservative `apply` commands.
+  `sample`, `doctor`, `snapshot`, and conservative `apply` commands.
 - Adds text, JSON, and Markdown output for reviewable audit and plan workflows.
 - Adds an offline install check for optional AWS and YAML integrations.
 - Adds a `--github-summary` option for GitHub Actions job summaries.
@@ -24,3 +24,4 @@
 - Adds an examples guide and PyPI metadata links for first-run discoverability.
 - Adds a report-format guide for audit, plan, apply, and CI artifacts.
 - Adds a safety model guide for conservative defaults and destructive changes.
+- Adds a `sample` command for generating a runnable offline demo after install.

@@ -31,6 +31,21 @@ Use `.yaml` or `.yml` when your policy repository stores desired state as YAML:
 lfguard init --output-file policy/desired.yaml
 ```
 
+## Try a Local Demo
+
+Generate paired desired/current files when you want to see a plan before wiring
+`lfguard` into AWS or CI:
+
+```bash
+lfguard sample --output-dir lfguard-demo
+lfguard plan \
+  --desired lfguard-demo/desired.json \
+  --current-snapshot lfguard-demo/current-snapshot.json
+```
+
+The generated current snapshot is deliberately incomplete, so the plan contains
+safe additive changes.
+
 ## Use the JSON Schema
 
 Write the schema to your policy directory and point your editor or CI validator

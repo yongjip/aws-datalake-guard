@@ -542,6 +542,54 @@ class AuditCliTests(unittest.TestCase):
             self.assertIn("already exists", stderr.getvalue())
             self.assertEqual(output_path.read_text(encoding="utf-8"), "{}")
 
+    def test_cli_sample_writes_runnable_offline_demo(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output_dir = Path(tmp) / "lfguard-demo"
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                exit_code = main(["sample", "--output-dir", str(output_dir)])
+
+            desired_path = output_dir / "desired.json"
+            current_path = output_dir / "current-snapshot.json"
+            desired = DesiredState.from_dict(json.loads(desired_path.read_text(encoding="utf-8")))
+            current = CurrentState.from_dict(json.loads(current_path.read_text(encoding="utf-8")))
+
+            self.assertEqual(exit_code, 0)
+            self.assertIn("lfguard plan --desired", stdout.getvalue())
+            self.assertEqual(len(desired.lf_tags), 2)
+            self.assertEqual(len(current.lf_tags), 2)
+
+            plan_stdout = io.StringIO()
+            with contextlib.redirect_stdout(plan_stdout):
+                plan_exit_code = main(
+                    [
+                        "plan",
+                        "--desired",
+                        str(desired_path),
+                        "--current-snapshot",
+                        str(current_path),
+                    ]
+                )
+
+            self.assertEqual(plan_exit_code, 0)
+            self.assertIn("Plan: 3 change(s), 3 safe, 0 destructive.", plan_stdout.getvalue())
+
+    def test_cli_sample_refuses_to_overwrite_without_force(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output_dir = Path(tmp) / "lfguard-demo"
+            output_dir.mkdir()
+            desired_path = output_dir / "desired.json"
+            desired_path.write_text("{}", encoding="utf-8")
+
+            stderr = io.StringIO()
+            with contextlib.redirect_stderr(stderr):
+                exit_code = main(["sample", "--output-dir", str(output_dir)])
+
+            self.assertEqual(exit_code, 2)
+            self.assertIn("already exists", stderr.getvalue())
+            self.assertEqual(desired_path.read_text(encoding="utf-8"), "{}")
+
     def test_cli_schema_outputs_json_schema(self):
         stdout = io.StringIO()
         with contextlib.redirect_stdout(stdout):

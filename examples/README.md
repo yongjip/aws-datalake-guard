@@ -10,6 +10,13 @@ The snapshot is missing two desired LF-Tag values, one table tag assignment, and
 one LF-Tag policy grant. That makes it useful for seeing audit findings and
 conservative plans.
 
+If you installed `lfguard` from PyPI and do not have this repository checked
+out, generate the same kind of local demo files with:
+
+```bash
+lfguard sample --output-dir lfguard-demo
+```
+
 ## Validate the Policy
 
 ```bash

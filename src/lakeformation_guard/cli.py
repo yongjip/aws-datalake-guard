@@ -28,6 +28,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     try:
         if args.command == "init":
             return _cmd_init(args)
+        if args.command == "sample":
+            return _cmd_sample(args)
         if args.command == "schema":
             return _cmd_schema(args)
         if args.command == "doctor":
@@ -65,6 +67,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="Starter policy output format. Defaults to the output file extension, or json for stdout.",
     )
     init_parser.add_argument("--force", action="store_true", help="Overwrite the output file if it already exists.")
+
+    sample_parser = subparsers.add_parser("sample", help="Generate offline demo desired/current state files.")
+    sample_parser.add_argument("--output-dir", required=True, help="Directory to write sample files into.")
+    sample_parser.add_argument("--force", action="store_true", help="Overwrite sample files if they already exist.")
 
     schema_parser = subparsers.add_parser("schema", help="Emit the JSON Schema for desired/current state files.")
     schema_parser.add_argument("--output-file", help="Write schema JSON to this file instead of stdout.")
@@ -156,6 +162,32 @@ def _cmd_init(args: argparse.Namespace) -> int:
             raise RuntimeError("Could not write starter policy to {}: {}".format(output_path, exc)) from exc
     else:
         print(text, end="")
+    return 0
+
+
+def _cmd_sample(args: argparse.Namespace) -> int:
+    output_dir = Path(args.output_dir)
+    files = {
+        "desired.json": dumps_json(_sample_desired_state()),
+        "current-snapshot.json": dumps_json(_sample_current_state()),
+    }
+    existing = [output_dir / name for name in files if (output_dir / name).exists()]
+    if existing and not args.force:
+        raise RuntimeError(
+            "{} already exists; pass --force to overwrite sample files".format(
+                ", ".join(str(path) for path in existing)
+            )
+        )
+    try:
+        output_dir.mkdir(parents=True, exist_ok=True)
+        for name, text in files.items():
+            (output_dir / name).write_text(text, encoding="utf-8")
+    except OSError as exc:
+        raise RuntimeError("Could not write sample files to {}: {}".format(output_dir, exc)) from exc
+
+    print("Wrote lfguard sample files to {}.\n".format(output_dir))
+    print("Run:")
+    print("  lfguard plan --desired {}/desired.json --current-snapshot {}/current-snapshot.json".format(output_dir, output_dir))
     return 0
 
 
@@ -454,6 +486,64 @@ def _starter_desired_state() -> dict:
                 "permissions": ["DESCRIBE", "SELECT"],
             }
         ],
+    }
+
+
+def _sample_desired_state() -> dict:
+    return {
+        "lf_tags": {
+            "sensitivity": ["public", "internal", "restricted"],
+            "domain": ["sales", "finance"],
+        },
+        "resource_tags": [
+            {
+                "resource": {
+                    "kind": "table",
+                    "database": "analytics",
+                    "table": "orders",
+                },
+                "tags": {
+                    "sensitivity": ["internal"],
+                    "domain": ["sales"],
+                },
+            }
+        ],
+        "grants": [
+            {
+                "principal": "arn:aws:iam::111122223333:role/Analyst",
+                "resource": {
+                    "kind": "lf_tag_policy",
+                    "resource_type": "TABLE",
+                    "expression": {
+                        "domain": ["sales"],
+                        "sensitivity": ["public", "internal"],
+                    },
+                },
+                "permissions": ["SELECT", "DESCRIBE"],
+            }
+        ],
+    }
+
+
+def _sample_current_state() -> dict:
+    return {
+        "lf_tags": {
+            "sensitivity": ["public"],
+            "domain": ["sales", "finance"],
+        },
+        "resource_tags": [
+            {
+                "resource": {
+                    "kind": "table",
+                    "database": "analytics",
+                    "table": "orders",
+                },
+                "tags": {
+                    "domain": ["sales"],
+                },
+            }
+        ],
+        "grants": [],
     }
 
 

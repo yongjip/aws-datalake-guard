@@ -13,6 +13,7 @@ Use `lfguard --help` or `lfguard <command> --help` for argparse-generated help.
 | Command | Purpose | AWS calls |
 | --- | --- | --- |
 | `init` | Generate a starter desired-state policy file. | No |
+| `sample` | Generate offline demo desired/current state files. | No |
 | `schema` | Emit the JSON Schema for desired/current state files. | No |
 | `doctor` | Check the local install and optional extras. | No |
 | `validate` | Parse and validate local desired/current state files. | No |
@@ -80,6 +81,23 @@ Useful options:
 
 When `--format` is omitted, `.yaml` and `.yml` output paths produce YAML;
 stdout defaults to JSON.
+
+## `sample`
+
+Generate paired offline demo files that work immediately after `pip install`:
+
+```bash
+lfguard sample --output-dir lfguard-demo
+lfguard plan \
+  --desired lfguard-demo/desired.json \
+  --current-snapshot lfguard-demo/current-snapshot.json
+```
+
+Useful options:
+
+- `--output-dir PATH`: directory to write `desired.json` and
+  `current-snapshot.json`.
+- `--force`: overwrite existing sample files.
 
 ## `schema`
 
