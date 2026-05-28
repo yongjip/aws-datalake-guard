@@ -411,6 +411,8 @@ PyPI publisher settings.
   shape with examples for each supported resource kind.
 - [`docs/schema.json`](docs/schema.json): JSON Schema for desired/current state
   files.
+- [`docs/aws-api-coverage.md`](docs/aws-api-coverage.md): exact boto3 Lake
+  Formation calls used for live inventory and apply.
 - [`docs/github-actions.md`](docs/github-actions.md): a copy-paste drift check
   workflow using GitHub OIDC, job summaries, and uploaded report artifacts.
 - [`docs/aws-permissions.md`](docs/aws-permissions.md): suggested minimum IAM

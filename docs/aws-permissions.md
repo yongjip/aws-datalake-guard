@@ -74,3 +74,6 @@ For production use, scope the role with your existing AWS account boundaries,
 Lake Formation administrator model, permission boundaries, and deployment
 process. Keep revoke and tag removal permissions out of routine automation if
 your governance process requires separate approval for destructive changes.
+
+See [`aws-api-coverage.md`](aws-api-coverage.md) for the exact boto3 Lake
+Formation methods behind each live inventory and apply operation.

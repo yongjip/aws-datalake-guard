@@ -49,7 +49,8 @@ require the same explicit `--allow-*` flags used by `plan`.
 
 Apply does not bypass AWS authorization. The IAM principal must already have the
 Lake Formation permissions needed for each operation. See
-[`aws-permissions.md`](aws-permissions.md) for starter IAM policy shapes.
+[`aws-permissions.md`](aws-permissions.md) for starter IAM policy shapes and
+[`aws-api-coverage.md`](aws-api-coverage.md) for the exact live AWS calls.
 
 ## Snapshot Scope
 
