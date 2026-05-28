@@ -107,6 +107,15 @@ lfguard plan \
 By default, `lfguard` plans additions only: missing LF-Tag definitions, missing
 LF-Tag values, missing resource tag assignments, and missing permissions.
 
+Use `--fail-on-changes` when a non-empty plan should fail a CI job:
+
+```bash
+lfguard plan \
+  --desired policy/desired.json \
+  --current-snapshot snapshots/prod-current.json \
+  --fail-on-changes
+```
+
 ## Apply Additive Changes
 
 Run a dry run against live AWS first:

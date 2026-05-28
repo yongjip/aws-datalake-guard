@@ -135,6 +135,58 @@ class AuditCliTests(unittest.TestCase):
             self.assertIn("| Safety | Action | Target | Reason |", stdout.getvalue())
             self.assertIn("| safe | lf_tag.create | lf_tag:sensitivity | LF-Tag is missing |", stdout.getvalue())
 
+    def test_cli_plan_can_fail_when_changes_are_present(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            desired_path = tmp_path / "desired.json"
+            current_path = tmp_path / "current.json"
+            desired_path.write_text(
+                json.dumps({"lf_tags": {"sensitivity": ["internal"]}, "grants": []}),
+                encoding="utf-8",
+            )
+            current_path.write_text(json.dumps({"lf_tags": {}, "grants": []}), encoding="utf-8")
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                exit_code = main(
+                    [
+                        "plan",
+                        "--desired",
+                        str(desired_path),
+                        "--current-snapshot",
+                        str(current_path),
+                        "--fail-on-changes",
+                    ]
+                )
+
+            self.assertEqual(exit_code, 1)
+            self.assertIn("Plan: 1 change(s), 1 safe, 0 destructive.", stdout.getvalue())
+
+    def test_cli_plan_fail_on_changes_passes_when_plan_is_empty(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            desired_path = tmp_path / "desired.json"
+            current_path = tmp_path / "current.json"
+            state = {"lf_tags": {"sensitivity": ["internal"]}, "grants": []}
+            desired_path.write_text(json.dumps(state), encoding="utf-8")
+            current_path.write_text(json.dumps(state), encoding="utf-8")
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                exit_code = main(
+                    [
+                        "plan",
+                        "--desired",
+                        str(desired_path),
+                        "--current-snapshot",
+                        str(current_path),
+                        "--fail-on-changes",
+                    ]
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertIn("Plan: 0 change(s), 0 safe, 0 destructive.", stdout.getvalue())
+
     def test_cli_audit_outputs_markdown(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)

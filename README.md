@@ -181,6 +181,15 @@ lfguard plan \
   --current-snapshot current.json
 ```
 
+Fail CI when the plan is not empty:
+
+```bash
+lfguard plan \
+  --desired desired.json \
+  --current-snapshot current.json \
+  --fail-on-changes
+```
+
 Audit and fail the command when drift is found:
 
 ```bash

@@ -91,6 +91,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_output_arg(plan_parser, markdown=True)
     _add_github_summary_arg(plan_parser)
     _add_plan_option_args(plan_parser)
+    plan_parser.add_argument("--fail-on-changes", action="store_true", help="Exit with status 1 when the plan contains any change.")
 
     snapshot_parser = subparsers.add_parser("snapshot", help="Export live AWS state for a desired policy scope.")
     snapshot_parser.add_argument("--desired", required=True, help="Desired state JSON/YAML file that defines the snapshot scope.")
@@ -127,6 +128,8 @@ def _cmd_plan(args: argparse.Namespace) -> int:
     if args.github_summary:
         _append_github_summary(_render_plan_markdown(change_plan))
     _print_plan(change_plan, args.output)
+    if change_plan.changes and args.fail_on_changes:
+        return 1
     return 0
 
 
