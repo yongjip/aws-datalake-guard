@@ -35,6 +35,17 @@ values, are omitted unless the matching allow flag is set.
 - Produces JSON output suitable for pull request comments, release checks, and
   platform automation.
 
+## Common use cases
+
+- Fail a CI check when production Lake Formation state drifts from a reviewed
+  desired-state file.
+- Generate a safe change plan for new LF-Tag values, table tag assignments, and
+  LF-Tag policy grants.
+- Let platform teams review destructive operations separately from additive
+  changes.
+- Keep data access policy as code without writing direct boto3 orchestration for
+  every grant and tag assignment.
+
 ## Install
 
 ```bash
@@ -220,6 +231,13 @@ not turn destructive changes on by default.
 The repository includes GitHub Actions for CI and PyPI Trusted Publishing. See
 [`docs/publishing.md`](docs/publishing.md) for the release path and the exact
 PyPI publisher settings.
+
+## More docs
+
+- [`docs/recipes.md`](docs/recipes.md): audit-only, CI, and controlled apply
+  workflows.
+- [`docs/aws-permissions.md`](docs/aws-permissions.md): suggested minimum IAM
+  permissions for read-only and apply roles.
 
 ## Development
 
