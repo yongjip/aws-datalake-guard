@@ -1,0 +1,230 @@
+# lfguard
+
+[![CI](https://github.com/yongjip/aws-datalake-guard/actions/workflows/ci.yml/badge.svg)](https://github.com/yongjip/aws-datalake-guard/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/lfguard.svg)](https://pypi.org/project/lfguard/)
+[![Python](https://img.shields.io/pypi/pyversions/lfguard.svg)](https://pypi.org/project/lfguard/)
+
+`lfguard` is an opinionated Python package for AWS Lake Formation
+and Glue Data Catalog guardrails. It compares a desired LF-Tag and permission
+policy against current state, reports drift, produces a conservative change plan,
+and can apply only the changes that you explicitly allow.
+
+The import package is `lakeformation_guard`; the primary CLI command is
+`lfguard`. The package also installs `aws-lakeformation-guard` as a descriptive
+command alias.
+
+## What it manages
+
+- LF-Tag definitions and allowed values.
+- LF-Tag assignments on Lake Formation Data Catalog resources.
+- Lake Formation grants on catalog, database, table, column, data location, and
+  LF-Tag policy resources.
+- Offline audit and plan workflows from JSON or YAML snapshots.
+- Live AWS inventory and apply workflows through the optional `boto3` adapter.
+
+By default, plans only add missing definitions, tag assignments, and permissions.
+Potentially destructive changes, such as revoking permissions or removing tag
+values, are omitted unless the matching allow flag is set.
+
+## Why use it
+
+- Reviewable plans before touching production Lake Formation state.
+- Conservative defaults that avoid accidental revokes and tag removals.
+- Works offline from snapshots, which makes CI drift checks possible.
+- Keeps the Python API dependency-light while isolating boto3 in the AWS adapter.
+- Produces JSON output suitable for pull request comments, release checks, and
+  platform automation.
+
+## Install
+
+```bash
+python -m pip install lfguard
+```
+
+For live AWS usage:
+
+```bash
+python -m pip install "lfguard[aws]"
+```
+
+For YAML policy files:
+
+```bash
+python -m pip install "lfguard[yaml]"
+```
+
+## Quickstart
+
+Try the included offline example with no AWS credentials:
+
+```bash
+lfguard plan \
+  --desired examples/desired.json \
+  --current-snapshot examples/current-snapshot.json
+```
+
+Expected output:
+
+```text
+Plan: 3 change(s), 3 safe, 0 destructive.
+- [safe] lf_tag.add_values lf_tag:sensitivity: LF-Tag is missing allowed values
+- [safe] resource_tag.add_values table:database=analytics:table=orders: Resource is missing desired LF-Tag assignments
+- [safe] grant.add_permissions arn:aws:iam::111122223333:role/Analyst -> lf_tag_policy:resource_type=TABLE:expression=domain=sales,sensitivity=internal|public: Principal is missing desired Lake Formation permissions
+```
+
+## Desired state format
+
+JSON and YAML use the same shape:
+
+```json
+{
+  "lf_tags": {
+    "sensitivity": ["public", "internal", "restricted"],
+    "domain": ["sales", "finance"]
+  },
+  "resource_tags": [
+    {
+      "resource": {
+        "kind": "table",
+        "database": "analytics",
+        "table": "orders"
+      },
+      "tags": {
+        "sensitivity": ["internal"],
+        "domain": ["sales"]
+      }
+    }
+  ],
+  "grants": [
+    {
+      "principal": "arn:aws:iam::111122223333:role/Analyst",
+      "resource": {
+        "kind": "lf_tag_policy",
+        "resource_type": "TABLE",
+        "expression": {
+          "domain": ["sales"],
+          "sensitivity": ["public", "internal"]
+        }
+      },
+      "permissions": ["SELECT", "DESCRIBE"]
+    }
+  ]
+}
+```
+
+Supported resource kinds are `catalog`, `database`, `table`,
+`table_with_columns`, `data_location`, and `lf_tag_policy`.
+
+## CLI
+
+Show version and command help:
+
+```bash
+lfguard --version
+lfguard --help
+```
+
+Plan against an offline snapshot:
+
+```bash
+lfguard plan \
+  --desired desired.json \
+  --current-snapshot current.json
+```
+
+Audit and fail the command when drift is found:
+
+```bash
+lfguard audit \
+  --desired desired.json \
+  --current-snapshot current.json \
+  --fail-on-findings
+```
+
+Dry-run against live AWS state:
+
+```bash
+lfguard apply \
+  --desired desired.yaml \
+  --profile prod \
+  --region ap-northeast-2
+```
+
+Execute non-destructive changes:
+
+```bash
+lfguard apply \
+  --desired desired.yaml \
+  --profile prod \
+  --region ap-northeast-2 \
+  --execute
+```
+
+Allow revokes only when that is the intended maintenance operation:
+
+```bash
+lfguard plan \
+  --desired desired.json \
+  --current-snapshot current.json \
+  --allow-permission-revokes
+```
+
+## Python API
+
+```python
+from lakeformation_guard import DesiredState, CurrentState, PlanOptions, audit, plan
+
+desired = DesiredState.from_dict({
+    "lf_tags": {"sensitivity": ["public", "internal"]},
+    "grants": [
+        {
+            "principal": "arn:aws:iam::111122223333:role/Analyst",
+            "resource": {"kind": "database", "database": "analytics"},
+            "permissions": ["DESCRIBE"],
+        }
+    ],
+})
+
+current = CurrentState.empty()
+findings = audit(desired, current)
+change_plan = plan(desired, current, PlanOptions())
+
+for finding in findings:
+    print(finding.code, finding.message)
+
+for change in change_plan.changes:
+    print(change.action, change.target)
+```
+
+## Live AWS apply
+
+The live adapter only depends on `boto3` when you instantiate it:
+
+```python
+from lakeformation_guard import DesiredState, PlanOptions, plan
+from lakeformation_guard.aws import AWSLakeFormationAdapter
+
+desired = DesiredState.from_file("desired.yaml")
+adapter = AWSLakeFormationAdapter.from_boto3(profile_name="prod", region_name="ap-northeast-2")
+current = adapter.load_current_state_for(desired)
+change_plan = plan(desired, current, PlanOptions())
+adapter.apply(change_plan, dry_run=False)
+```
+
+Use an IAM principal with the minimum Lake Formation permissions required for the
+actions you intend to run. The package does not bypass AWS authorization and does
+not turn destructive changes on by default.
+
+## Release and Trust
+
+The repository includes GitHub Actions for CI and PyPI Trusted Publishing. See
+[`docs/publishing.md`](docs/publishing.md) for the release path and the exact
+PyPI publisher settings.
+
+## Development
+
+```bash
+python -m pip install -e ".[dev,aws,yaml]"
+python -m unittest discover -s tests
+python -m build
+```
