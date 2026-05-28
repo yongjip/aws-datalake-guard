@@ -77,6 +77,8 @@
   package metadata.
 - Verifies release artifact filenames and embedded wheel/sdist metadata before
   upload.
+- Adds an optional `bootstrap --include-live-drift` scaffold for scheduled
+  GitHub OIDC drift checks and starter read-only IAM policy JSON.
 - Adds docs tests for internal Markdown links.
 - Adds package metadata tests for version, console scripts, and project URLs.
 - Modernizes the build backend requirement for current setuptools releases.

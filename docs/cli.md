@@ -128,7 +128,23 @@ Useful options:
 - `--format json|yaml`: choose the desired policy file format. YAML workflows
   install `lfguard[yaml]`.
 - `--template data-domain|blank`: choose the starter policy.
+- `--include-live-drift`: also write `.github/workflows/lfguard-live-drift.yml`
+  and `iam/lfguard-read-only.json` for scheduled live AWS drift checks through
+  GitHub OIDC.
+- `--aws-role-arn ARN`: role ARN to place in the generated live drift workflow.
+- `--aws-region REGION`: AWS region to place in the generated live drift
+  workflow.
 - `--force`: overwrite existing bootstrap files.
+
+Live drift bootstrap example:
+
+```bash
+lfguard bootstrap \
+  --output-dir lfguard-policy \
+  --include-live-drift \
+  --aws-role-arn arn:aws:iam::111122223333:role/LakeFormationReadOnly \
+  --aws-region ap-northeast-2
+```
 
 ## `sample`
 

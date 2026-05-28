@@ -629,6 +629,51 @@ class AuditCliTests(unittest.TestCase):
             self.assertIn("lfguard check --desired policy/desired.json --fail-on-findings", pre_commit)
             self.assertIn("lfguard Policy Bootstrap", readme)
 
+    def test_cli_bootstrap_can_include_live_drift_workflow(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output_dir = Path(tmp) / "policy-repo"
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                exit_code = main(
+                    [
+                        "bootstrap",
+                        "--output-dir",
+                        str(output_dir),
+                        "--include-live-drift",
+                        "--aws-role-arn",
+                        "arn:aws:iam::123456789012:role/LFGuardReadOnly",
+                        "--aws-region",
+                        "ap-northeast-2",
+                    ]
+                )
+
+            workflow_path = output_dir / ".github" / "workflows" / "lfguard-live-drift.yml"
+            iam_path = output_dir / "iam" / "lfguard-read-only.json"
+            readme_path = output_dir / "README.md"
+            workflow = workflow_path.read_text(encoding="utf-8")
+            iam_policy = json.loads(iam_path.read_text(encoding="utf-8"))
+            readme = readme_path.read_text(encoding="utf-8")
+            actions = _policy_actions(iam_policy)
+
+            self.assertEqual(exit_code, 0)
+            self.assertIn(str(workflow_path), stdout.getvalue())
+            self.assertIn("id-token: write", workflow)
+            self.assertIn("arn:aws:iam::123456789012:role/LFGuardReadOnly", workflow)
+            self.assertIn("aws-region: ap-northeast-2", workflow)
+            self.assertIn('python -m pip install "lfguard[aws]"', workflow)
+            self.assertIn("lfguard doctor --require aws", workflow)
+            self.assertIn("lfguard snapshot", workflow)
+            self.assertIn("lfguard audit", workflow)
+            self.assertIn("lfguard plan", workflow)
+            self.assertIn("lfguard-live-drift-reports", workflow)
+            self.assertIn("lakeformation:GetLFTag", actions)
+            self.assertIn("lakeformation:ListPermissions", actions)
+            self.assertNotIn("lakeformation:GrantPermissions", actions)
+            self.assertIn(".github/workflows/lfguard-live-drift.yml", readme)
+            self.assertIn("iam/lfguard-read-only.json", readme)
+            self.assertIn("ap-northeast-2", readme)
+
     def test_cli_bootstrap_can_write_yaml_layout(self):
         with tempfile.TemporaryDirectory() as tmp:
             output_dir = Path(tmp) / "policy-repo"
@@ -647,6 +692,29 @@ class AuditCliTests(unittest.TestCase):
             self.assertIn("lfguard doctor --require yaml", workflow)
             self.assertIn("lfguard check --desired policy/desired.yaml --fail-on-findings", pre_commit)
             self.assertIn('python -m pip install "lfguard[yaml]"', readme)
+
+    def test_cli_bootstrap_live_drift_installs_yaml_and_aws_extras_for_yaml_layout(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output_dir = Path(tmp) / "policy-repo"
+
+            with contextlib.redirect_stdout(io.StringIO()):
+                exit_code = main(
+                    [
+                        "bootstrap",
+                        "--output-dir",
+                        str(output_dir),
+                        "--format",
+                        "yaml",
+                        "--include-live-drift",
+                    ]
+                )
+
+            workflow = (output_dir / ".github" / "workflows" / "lfguard-live-drift.yml").read_text(encoding="utf-8")
+
+            self.assertEqual(exit_code, 0)
+            self.assertIn('python -m pip install "lfguard[aws,yaml]"', workflow)
+            self.assertIn("lfguard doctor --require aws --require yaml", workflow)
+            self.assertIn("--desired policy/desired.yaml", workflow)
 
     def test_cli_bootstrap_refuses_to_overwrite_without_force(self):
         with tempfile.TemporaryDirectory() as tmp:

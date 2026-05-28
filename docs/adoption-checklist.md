@@ -81,6 +81,17 @@ using it to read live AWS state.
 
 ## 5. Add CI Drift Checks
 
+To generate a starter repository layout with an offline policy workflow, a
+scheduled live drift workflow, and a read-only IAM policy template, run:
+
+```bash
+lfguard bootstrap \
+  --output-dir lfguard-policy \
+  --include-live-drift \
+  --aws-role-arn arn:aws:iam::111122223333:role/LakeFormationReadOnly \
+  --aws-region us-east-1
+```
+
 Use check when a workflow should validate local state files and lint desired
 policy before enforcing drift:
 

@@ -117,6 +117,21 @@ def build_parser() -> argparse.ArgumentParser:
         default="data-domain",
         help="Starter policy template. Defaults to data-domain.",
     )
+    bootstrap_parser.add_argument(
+        "--include-live-drift",
+        action="store_true",
+        help="Also write a scheduled GitHub OIDC workflow for live AWS drift checks.",
+    )
+    bootstrap_parser.add_argument(
+        "--aws-role-arn",
+        default="arn:aws:iam::111122223333:role/LakeFormationReadOnly",
+        help="AWS role ARN for the generated live drift workflow.",
+    )
+    bootstrap_parser.add_argument(
+        "--aws-region",
+        default="us-east-1",
+        help="AWS region for the generated live drift workflow.",
+    )
     bootstrap_parser.add_argument("--force", action="store_true", help="Overwrite bootstrap files if they already exist.")
 
     schema_parser = subparsers.add_parser("schema", help="Emit the JSON Schema for desired/current state files.")
@@ -341,7 +356,13 @@ def _cmd_sample(args: argparse.Namespace) -> int:
 
 def _cmd_bootstrap(args: argparse.Namespace) -> int:
     output_dir = Path(args.output_dir)
-    files = _bootstrap_files(args.format, args.template)
+    files = _bootstrap_files(
+        args.format,
+        args.template,
+        include_live_drift=args.include_live_drift,
+        aws_role_arn=args.aws_role_arn,
+        aws_region=args.aws_region,
+    )
     existing = [output_dir / name for name in files if (output_dir / name).exists()]
     if existing and not args.force:
         raise RuntimeError(
@@ -364,6 +385,9 @@ def _cmd_bootstrap(args: argparse.Namespace) -> int:
     print("  {}/policy/{}".format(output_dir, desired_name))
     print("\nRun:")
     print("  lfguard check --desired {}/policy/{} --fail-on-findings".format(output_dir, desired_name))
+    if args.include_live_drift:
+        print("\nLive drift workflow:")
+        print("  {}/.github/workflows/lfguard-live-drift.yml".format(output_dir))
     print("\nSee {}/README.md for rollout steps.".format(output_dir))
     return 0
 
@@ -797,7 +821,16 @@ _COMPLETION_COMMANDS = (
 _COMPLETION_OPTIONS = {
     "init": ("--output-file", "--format", "--template", "--force", "--help"),
     "sample": ("--output-dir", "--format", "--include-ci", "--force", "--help"),
-    "bootstrap": ("--output-dir", "--format", "--template", "--force", "--help"),
+    "bootstrap": (
+        "--output-dir",
+        "--format",
+        "--template",
+        "--include-live-drift",
+        "--aws-role-arn",
+        "--aws-region",
+        "--force",
+        "--help",
+    ),
     "schema": ("--output-file", "--help"),
     "doctor": ("--output", "--output-file", "--require", "--help"),
     "permissions": ("--template", "--include-glue-read", "--output", "--output-file", "--help"),
@@ -1276,11 +1309,18 @@ def _starter_desired_state(template: str = "data-domain") -> dict:
     }
 
 
-def _bootstrap_files(output_format: str, template: str) -> dict:
+def _bootstrap_files(
+    output_format: str,
+    template: str,
+    *,
+    include_live_drift: bool = False,
+    aws_role_arn: str = "arn:aws:iam::111122223333:role/LakeFormationReadOnly",
+    aws_region: str = "us-east-1",
+) -> dict:
     desired_name = _bootstrap_desired_name(output_format)
     desired_path = "policy/{}".format(desired_name)
     needs_yaml_extra = output_format == "yaml"
-    return {
+    files = {
         desired_path: _dump_starter_desired_state(output_format, template),
         "policy/lfguard.schema.json": dumps_json(state_json_schema()),
         ".github/workflows/lfguard-policy.yml": _bootstrap_github_actions_workflow(
@@ -1288,8 +1328,23 @@ def _bootstrap_files(output_format: str, template: str) -> dict:
             needs_yaml_extra=needs_yaml_extra,
         ),
         ".pre-commit-config.yaml": _bootstrap_pre_commit_config(desired_path),
-        "README.md": _bootstrap_readme(desired_path, needs_yaml_extra=needs_yaml_extra),
+        "README.md": _bootstrap_readme(
+            desired_path,
+            needs_yaml_extra=needs_yaml_extra,
+            include_live_drift=include_live_drift,
+            aws_role_arn=aws_role_arn,
+            aws_region=aws_region,
+        ),
     }
+    if include_live_drift:
+        files[".github/workflows/lfguard-live-drift.yml"] = _bootstrap_live_drift_workflow(
+            desired_path,
+            needs_yaml_extra=needs_yaml_extra,
+            aws_role_arn=aws_role_arn,
+            aws_region=aws_region,
+        )
+        files["iam/lfguard-read-only.json"] = dumps_json(_iam_policy_template("read-only"))
+    return files
 
 
 def _bootstrap_desired_name(output_format: str) -> str:
@@ -1375,8 +1430,147 @@ def _bootstrap_pre_commit_config(desired_path: str) -> str:
     )
 
 
-def _bootstrap_readme(desired_path: str, *, needs_yaml_extra: bool) -> str:
+def _bootstrap_live_drift_workflow(
+    desired_path: str,
+    *,
+    needs_yaml_extra: bool,
+    aws_role_arn: str,
+    aws_region: str,
+) -> str:
+    install_target = '"lfguard[aws,yaml]"' if needs_yaml_extra else '"lfguard[aws]"'
+    doctor_command = "lfguard doctor --require aws --require yaml" if needs_yaml_extra else "lfguard doctor --require aws"
+    return """name: lfguard live drift
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 * * * *"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: {aws_role_arn}
+          aws-region: {aws_region}
+
+      - name: Install lfguard
+        run: python -m pip install {install_target}
+
+      - name: Check lfguard install
+        run: {doctor_command}
+
+      - name: Validate policy before AWS access
+        run: |
+          mkdir -p artifacts snapshots
+
+          lfguard check \\
+            --desired {desired_path} \\
+            --output markdown \\
+            --output-file artifacts/lfguard-check.md \\
+            --fail-on-findings \\
+            --github-summary
+
+          lfguard summary \\
+            --desired {desired_path} \\
+            --output markdown \\
+            --output-file artifacts/lfguard-summary.md \\
+            --github-summary
+
+      - name: Capture current Lake Formation state
+        run: |
+          lfguard snapshot \\
+            --desired {desired_path} \\
+            --region {aws_region} \\
+            --output-file snapshots/current.json
+
+      - name: Audit and plan drift
+        run: |
+          set +e
+
+          lfguard audit \\
+            --desired {desired_path} \\
+            --current-snapshot snapshots/current.json \\
+            --output markdown \\
+            --output-file artifacts/lfguard-audit.md \\
+            --fail-on-findings \\
+            --github-summary
+          audit_status=$?
+
+          set -e
+
+          lfguard plan \\
+            --desired {desired_path} \\
+            --current-snapshot snapshots/current.json \\
+            --output markdown \\
+            --output-file artifacts/lfguard-plan.md \\
+            --github-summary
+
+          exit "$audit_status"
+
+      - name: Upload lfguard reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lfguard-live-drift-reports
+          path: |
+            artifacts/
+            snapshots/
+          if-no-files-found: ignore
+          retention-days: 14
+""".format(
+        aws_region=aws_region,
+        aws_role_arn=aws_role_arn,
+        desired_path=desired_path,
+        doctor_command=doctor_command,
+        install_target=install_target,
+    )
+
+
+def _bootstrap_readme(
+    desired_path: str,
+    *,
+    needs_yaml_extra: bool,
+    include_live_drift: bool = False,
+    aws_role_arn: str = "arn:aws:iam::111122223333:role/LakeFormationReadOnly",
+    aws_region: str = "us-east-1",
+) -> str:
     install_command = 'python -m pip install "lfguard[yaml]"' if needs_yaml_extra else "python -m pip install lfguard"
+    live_drift_file = ""
+    live_drift_steps = ""
+    live_drift_next_step = "Add a read-only Lake Formation snapshot workflow when you are ready to check live AWS drift."
+    if include_live_drift:
+        live_extra = "lfguard[aws,yaml]" if needs_yaml_extra else "lfguard[aws]"
+        live_drift_next_step = "Review the generated live drift workflow and attach least-privilege read permissions."
+        live_drift_file = """- `.github/workflows/lfguard-live-drift.yml`: scheduled live AWS drift check
+  using GitHub OIDC and `{live_extra}`.
+- `iam/lfguard-read-only.json`: starter IAM policy for the role used by the
+  live drift workflow.
+""".format(
+            live_extra=live_extra,
+        )
+        live_drift_steps = """
+## Live Drift Workflow
+
+The generated live drift workflow assumes `{aws_role_arn}` in `{aws_region}`.
+Review `.github/workflows/lfguard-live-drift.yml`, attach the starter
+`iam/lfguard-read-only.json` permissions to the assumed role, then enable the
+workflow after the desired policy is reviewed.
+""".format(
+            aws_region=aws_region,
+            aws_role_arn=aws_role_arn,
+        )
     return """# lfguard Policy Bootstrap
 
 This directory is a starter Lake Formation policy-as-code layout generated by
@@ -1389,6 +1583,7 @@ This directory is a starter Lake Formation policy-as-code layout generated by
 - `.github/workflows/lfguard-policy.yml`: offline CI check, summary, and report
   artifact workflow.
 - `.pre-commit-config.yaml`: local check hook.
+{live_drift_file}
 
 ## First Checks
 
@@ -1397,18 +1592,21 @@ This directory is a starter Lake Formation policy-as-code layout generated by
 lfguard check --desired {desired_path} --fail-on-findings
 lfguard summary --desired {desired_path}
 ```
+{live_drift_steps}
 
 ## Next Steps
 
 1. Replace example LF-Tag keys, values, resources, and principals with sanitized
    names from your environment.
 2. Commit the policy file, schema, workflow, and pre-commit configuration.
-3. Add a read-only Lake Formation snapshot workflow when you are ready to check
-   live AWS drift.
+3. {live_drift_next_step}
 4. Review every `lfguard plan` before using `lfguard apply --execute`.
 """.format(
         desired_path=desired_path,
         install_command=install_command,
+        live_drift_file=live_drift_file,
+        live_drift_steps=live_drift_steps,
+        live_drift_next_step=live_drift_next_step,
     )
 
 

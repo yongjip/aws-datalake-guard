@@ -201,6 +201,17 @@ GitHub Actions workflow, pre-commit config, and rollout README:
 lfguard bootstrap --output-dir lfguard-policy
 ```
 
+Include a scheduled GitHub OIDC workflow and starter read-only IAM policy for
+live drift checks:
+
+```bash
+lfguard bootstrap \
+  --output-dir lfguard-policy \
+  --include-live-drift \
+  --aws-role-arn arn:aws:iam::111122223333:role/LakeFormationReadOnly \
+  --aws-region ap-northeast-2
+```
+
 Create a starter desired-state file:
 
 ```bash
