@@ -48,6 +48,8 @@
 - Adds a Lake Formation operating guide covering IAM/Lake Formation interaction,
   LF-Tag best practices, hybrid access mode, `IAMAllowedPrincipals`, and
   antipatterns.
+- Tightens README and CLI guidance around the core `check`, `audit`, `plan`,
+  and conservative `apply` workflow while keeping scaffolds secondary.
 - Adds a positioning guide for how `lfguard` fits with infrastructure tools,
   raw boto3, and console workflows.
 - Calls out README scope limits early so new users can evaluate fit quickly.

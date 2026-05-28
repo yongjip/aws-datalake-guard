@@ -3,6 +3,11 @@
 These workflows are intended to keep Lake Formation changes reviewable and
 conservative.
 
+The core recipes are `check`, `audit`, `plan`, and dry-run `apply`. Setup
+helpers such as `doctor`, `completion`, `bootstrap`, `schema`, and
+`permissions` are included only when they remove real friction from that core
+workflow.
+
 ## Start a Policy File
 
 Confirm the installed CLI, Python runtime, optional extras, and AWS-related

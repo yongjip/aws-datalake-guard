@@ -8,10 +8,28 @@
 
 Use `lfguard --help` or `lfguard <command> --help` for argparse-generated help.
 
+## Command Tiers
+
+Start with the core workflow:
+
+1. `check` validates and lints desired policy before AWS access.
+2. `audit` reports drift between desired and current state.
+3. `plan` shows the conservative change set for review.
+4. `apply` dry-runs by default and executes only with `--execute`.
+
+Everything else is supporting workflow. Use `sample`, `init`, `bootstrap`,
+`schema`, `doctor`, `permissions`, `completion`, `validate`, `lint`, `summary`,
+and `snapshot` when they remove real setup or review friction. They are not the
+reason to adopt the package.
+
 ## Command Overview
 
 | Command | Purpose | AWS calls |
 | --- | --- | --- |
+| `check` | Validate and lint local policy files in one CI-friendly command. | No |
+| `audit` | Report drift between desired and current state. | Only when `--current-snapshot` is omitted |
+| `plan` | Produce a conservative change plan. | Only when `--current-snapshot` is omitted |
+| `apply` | Dry-run or execute a Lake Formation change plan. | Yes when live state is loaded or `--execute` is used |
 | `init` | Generate a starter desired-state policy file. | No |
 | `bootstrap` | Create a starter policy repository layout with CI and pre-commit files. | No |
 | `sample` | Generate offline demo desired/current state files. | No |
@@ -19,14 +37,10 @@ Use `lfguard --help` or `lfguard <command> --help` for argparse-generated help.
 | `doctor` | Check the local install and optional extras. | No |
 | `permissions` | Emit starter IAM policies for live AWS workflows. | No |
 | `completion` | Emit shell completion scripts for bash, zsh, or fish. | No |
-| `check` | Validate and lint local policy files in one CI-friendly command. | No |
 | `validate` | Parse and validate local desired/current state files. | No |
 | `lint` | Check desired policy semantics, such as undefined LF-Tag references. | No |
 | `summary` | Summarize desired and optional current state for review. | No |
-| `audit` | Report drift between desired and current state. | Only when `--current-snapshot` is omitted |
-| `plan` | Produce a conservative change plan. | Only when `--current-snapshot` is omitted |
 | `snapshot` | Export live AWS state for a desired policy scope. | Yes |
-| `apply` | Dry-run or execute a Lake Formation change plan. | Yes when live state is loaded or `--execute` is used |
 
 ## Common Options
 
@@ -144,18 +158,13 @@ Useful options:
 - `--aws-region REGION`: AWS region to place in generated live AWS workflows.
 - `--force`: overwrite existing bootstrap files.
 
-Live drift, Code Scanning, review, and editor bootstrap example:
+Optional scaffold examples:
 
 ```bash
-lfguard bootstrap \
-  --output-dir lfguard-policy \
-  --include-live-drift \
-  --include-code-scanning \
-  --include-review-template \
-  --include-editor-config \
-  --policy-owner @your-org/data-platform \
-  --aws-role-arn arn:aws:iam::111122223333:role/LakeFormationReadOnly \
-  --aws-region ap-northeast-2
+lfguard bootstrap --output-dir lfguard-policy --include-live-drift
+lfguard bootstrap --output-dir lfguard-policy --include-code-scanning
+lfguard bootstrap --output-dir lfguard-policy --include-review-template
+lfguard bootstrap --output-dir lfguard-policy --include-editor-config
 ```
 
 ## `sample`

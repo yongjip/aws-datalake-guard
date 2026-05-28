@@ -44,16 +44,21 @@ desired-state file so drift checks stay focused and reviewable.
 - Produces text, JSON, Markdown, and SARIF output suitable for pull request
   comments, release checks, code scanning, and platform automation.
 
-## Capabilities at a glance
+## Core workflow
 
-| Workflow | AWS required | Typical command | Review artifact |
-| --- | --- | --- | --- |
-| Validate and lint local policy files | No | `lfguard check` | Text, JSON, Markdown |
-| Summarize desired and current state | No | `lfguard summary` | Text, JSON, Markdown |
-| Audit drift from a snapshot | No | `lfguard audit --current-snapshot ...` | Text, JSON, Markdown, SARIF |
-| Plan conservative changes from a snapshot | No | `lfguard plan --current-snapshot ...` | Text, JSON, Markdown |
-| Capture scoped live current state | Yes | `lfguard snapshot` | JSON/YAML snapshot |
-| Dry-run or apply reviewed changes | Yes for live state or `--execute` | `lfguard apply` | Text, JSON, Markdown |
+`lfguard` is useful when it keeps the workflow small:
+
+| Step | Command | Purpose |
+| --- | --- | --- |
+| 1 | `lfguard check` | Validate and lint desired policy before AWS access. |
+| 2 | `lfguard audit` | Compare desired policy with current state and report drift. |
+| 3 | `lfguard plan` | Produce the conservative change set reviewers should approve. |
+| 4 | `lfguard apply` | Dry-run by default; execute only after review. |
+
+Everything else is supporting workflow: sample files, repository bootstrap,
+schema export, install diagnostics, IAM policy starters, and report formatting.
+Those helpers are optional. The core value is still check, audit, plan, and
+conservative apply.
 
 ## Common use cases
 
@@ -102,21 +107,14 @@ python -m pip install "lfguard[yaml]"
 
 ## Quickstart
 
-Check the local install and optional extras without making AWS calls:
-
-```bash
-lfguard doctor
-```
-
 Generate a runnable offline demo with no AWS credentials:
 
 ```bash
-lfguard sample --output-dir lfguard-demo --include-ci
+lfguard sample --output-dir lfguard-demo
 ```
 
-The command writes `desired.json`, `current-snapshot.json`, a short `README.md`
-with copy-paste commands, and an optional offline GitHub Actions workflow under
-`.github/workflows/lfguard-demo.yml`.
+The command writes `desired.json`, `current-snapshot.json`, and a short
+`README.md` with copy-paste commands.
 
 Check that the generated files are valid and lint-clean:
 
@@ -126,7 +124,15 @@ lfguard check \
   --current-snapshot lfguard-demo/current-snapshot.json
 ```
 
-Plan against the generated desired state and deliberately incomplete snapshot:
+Audit the deliberately incomplete snapshot:
+
+```bash
+lfguard audit \
+  --desired lfguard-demo/desired.json \
+  --current-snapshot lfguard-demo/current-snapshot.json
+```
+
+Plan the additive changes that would close the gap:
 
 ```bash
 lfguard plan \
@@ -197,325 +203,33 @@ lfguard --version
 lfguard --help
 ```
 
-Enable shell completion for the current bash session:
-
-```bash
-source <(lfguard completion --shell bash)
-```
-
-Bootstrap a policy repository layout with a starter desired policy, JSON Schema,
-GitHub Actions workflow, pre-commit config, and rollout README:
-
-```bash
-lfguard bootstrap --output-dir lfguard-policy
-```
-
-Include a scheduled GitHub OIDC workflow and starter read-only IAM policy for
-live drift checks:
-
-```bash
-lfguard bootstrap \
-  --output-dir lfguard-policy \
-  --include-live-drift \
-  --aws-role-arn arn:aws:iam::111122223333:role/LakeFormationReadOnly \
-  --aws-region ap-northeast-2
-```
-
-Include GitHub Code Scanning SARIF upload for lint and drift findings:
-
-```bash
-lfguard bootstrap \
-  --output-dir lfguard-policy \
-  --include-code-scanning \
-  --aws-role-arn arn:aws:iam::111122223333:role/LakeFormationReadOnly \
-  --aws-region ap-northeast-2
-```
-
-Include CODEOWNERS and a pull request checklist for policy review:
-
-```bash
-lfguard bootstrap \
-  --output-dir lfguard-policy \
-  --include-review-template \
-  --policy-owner @your-org/data-platform
-```
-
-Include VS Code schema validation for the generated desired policy:
-
-```bash
-lfguard bootstrap --output-dir lfguard-policy --include-editor-config
-```
-
-Create a starter desired-state file:
-
-```bash
-lfguard init --output-file policy/desired.json
-```
-
-Start from an empty policy skeleton when you want to fill in every tag,
-assignment, and grant yourself:
-
-```bash
-lfguard init --template blank --output-file policy/desired.json
-```
-
-Generate paired offline sample files for a local demo:
-
-```bash
-lfguard sample --output-dir lfguard-demo
-```
-
-Include a starter GitHub Actions workflow that runs the offline demo in CI:
-
-```bash
-lfguard sample --output-dir lfguard-demo --include-ci
-```
-
-Generate YAML sample files when your policy repository uses YAML:
-
-```bash
-lfguard sample --output-dir lfguard-demo-yaml --format yaml
-```
-
-Generate a YAML starter when your policy repo uses YAML:
-
-```bash
-lfguard init --output-file policy/desired.yaml
-```
-
-Check whether optional AWS/YAML integrations are installed:
-
-```bash
-lfguard doctor --output json
-```
-
-Fail when a CI job is missing an optional integration it needs:
-
-```bash
-lfguard doctor --require aws --require yaml
-```
-
-Save the install check for CI diagnostics:
-
-```bash
-lfguard doctor --output json --output-file artifacts/lfguard-doctor.json
-```
-
-Generate starter IAM policy JSON for live AWS workflows:
-
-```bash
-lfguard permissions --template read-only --include-glue-read
-lfguard permissions --template additive-apply --output-file iam/lfguard-additive-apply.json
-```
-
-Export the JSON Schema for editor or CI validation:
-
-```bash
-lfguard schema --output-file policy/lfguard.schema.json
-```
-
-Validate policy files without AWS credentials:
-
-```bash
-lfguard validate \
-  --desired desired.json \
-  --current-snapshot current.json
-```
-
-Lint the desired policy for undefined LF-Tag references:
-
-```bash
-lfguard lint --desired desired.json --fail-on-findings
-```
-
-Run the local CI gate in one command:
+Core commands:
 
 ```bash
 lfguard check --desired desired.json --current-snapshot current.json --fail-on-findings
+lfguard audit --desired desired.json --current-snapshot current.json --fail-on-findings
+lfguard plan --desired desired.json --current-snapshot current.json
+lfguard apply --desired desired.json --profile prod --region ap-northeast-2
 ```
 
-Summarize policy contents for review:
+Starter and support commands:
 
 ```bash
-lfguard summary \
-  --desired desired.json \
-  --current-snapshot current.json \
-  --output markdown
+lfguard init --output-file policy/desired.json
+lfguard sample --output-dir lfguard-demo
+lfguard bootstrap --output-dir lfguard-policy
+lfguard schema --output-file policy/lfguard.schema.json
+lfguard doctor --require aws
+lfguard permissions --template read-only --include-glue-read
 ```
 
-Save a validation report:
+Keep optional scaffolds secondary. Add them only when someone owns the workflow:
 
 ```bash
-lfguard validate \
-  --desired desired.json \
-  --current-snapshot current.json \
-  --output-file artifacts/lfguard-validate.txt
-```
-
-Plan against an offline snapshot:
-
-```bash
-lfguard plan \
-  --desired desired.json \
-  --current-snapshot current.json
-```
-
-Fail CI when the plan is not empty:
-
-```bash
-lfguard plan \
-  --desired desired.json \
-  --current-snapshot current.json \
-  --fail-on-changes
-```
-
-Save a reviewable plan report as a CI artifact:
-
-```bash
-lfguard plan \
-  --desired desired.json \
-  --current-snapshot current.json \
-  --output markdown \
-  --output-file artifacts/lfguard-plan.md
-```
-
-Audit and fail the command when drift is found:
-
-```bash
-lfguard audit \
-  --desired desired.json \
-  --current-snapshot current.json \
-  --fail-on-findings
-```
-
-Fail only when error-severity findings are present:
-
-```bash
-lfguard audit \
-  --desired desired.json \
-  --current-snapshot current.json \
-  --fail-on-findings \
-  --fail-on-severity error
-```
-
-Write a machine-readable audit report:
-
-```bash
-lfguard audit \
-  --desired desired.json \
-  --current-snapshot current.json \
-  --output json \
-  --output-file artifacts/lfguard-audit.json
-```
-
-Audit JSON includes `summary.total`, `summary.errors`, and `summary.warnings`
-so CI jobs can show drift counts without parsing individual findings.
-
-Write a SARIF audit report for security and governance dashboards:
-
-```bash
-lfguard audit \
-  --desired desired.json \
-  --current-snapshot current.json \
-  --output sarif \
-  --output-file artifacts/lfguard-audit.sarif
-```
-
-Write a SARIF lint report before taking an AWS snapshot:
-
-```bash
-lfguard lint \
-  --desired desired.json \
-  --output sarif \
-  --output-file artifacts/lfguard-lint.sarif
-```
-
-Use Markdown output for pull request comments or GitHub Actions summaries:
-
-```bash
-lfguard plan \
-  --desired desired.json \
-  --current-snapshot current.json \
-  --output markdown
-```
-
-In GitHub Actions, append the Markdown report directly to the job summary:
-
-```bash
-lfguard check \
-  --desired desired.json \
-  --current-snapshot current.json \
-  --fail-on-findings \
-  --github-summary
-
-lfguard lint \
-  --desired desired.json \
-  --fail-on-findings \
-  --github-summary
-
-lfguard summary \
-  --desired desired.json \
-  --current-snapshot current.json \
-  --github-summary
-
-lfguard audit \
-  --desired desired.json \
-  --current-snapshot current.json \
-  --fail-on-findings \
-  --github-summary
-```
-
-Export a live current-state snapshot for the resources and principals referenced
-by a desired-state file:
-
-```bash
-lfguard snapshot \
-  --desired desired.yaml \
-  --profile prod \
-  --region ap-northeast-2 \
-  --output-file snapshots/prod-current.json
-```
-
-Dry-run against live AWS state:
-
-```bash
-lfguard apply \
-  --desired desired.yaml \
-  --profile prod \
-  --region ap-northeast-2
-```
-
-Save the dry-run report before executing:
-
-```bash
-lfguard apply \
-  --desired desired.yaml \
-  --profile prod \
-  --region ap-northeast-2 \
-  --output markdown \
-  --output-file artifacts/lfguard-apply-dry-run.md
-```
-
-Execute non-destructive changes:
-
-```bash
-lfguard apply \
-  --desired desired.yaml \
-  --profile prod \
-  --region ap-northeast-2 \
-  --execute
-```
-
-Save machine-readable apply results:
-
-```bash
-lfguard apply \
-  --desired desired.yaml \
-  --profile prod \
-  --region ap-northeast-2 \
-  --execute \
-  --output json \
-  --output-file artifacts/lfguard-apply.json
+lfguard bootstrap --output-dir lfguard-policy --include-live-drift
+lfguard bootstrap --output-dir lfguard-policy --include-code-scanning
+lfguard bootstrap --output-dir lfguard-policy --include-review-template
+lfguard bootstrap --output-dir lfguard-policy --include-editor-config
 ```
 
 Allow revokes only when that is the intended maintenance operation:
