@@ -72,6 +72,7 @@
 - Adds a release workflow gate that installs and smoke-tests the package from
   PyPI after publishing.
 - Retries the post-publish PyPI install briefly to tolerate index propagation.
+- Verifies the exact PyPI version matching the GitHub release tag.
 - Adds docs tests for internal Markdown links.
 - Adds package metadata tests for version, console scripts, and project URLs.
 - Modernizes the build backend requirement for current setuptools releases.

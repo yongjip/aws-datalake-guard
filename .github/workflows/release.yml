@@ -68,15 +68,18 @@ jobs:
     name: Verify PyPI install
     runs-on: ubuntu-latest
     needs: publish
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name }}
     steps:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - name: Install published package
         run: |
+          version="${RELEASE_TAG#v}"
           python -m pip install --upgrade pip
           for attempt in 1 2 3 4 5 6 7 8; do
-            if python -m pip install --no-cache-dir lfguard; then
+            if python -m pip install --no-cache-dir "lfguard==${version}"; then
               exit 0
             fi
             if [ "$attempt" -eq 8 ]; then
@@ -86,7 +89,9 @@ jobs:
           done
       - name: Smoke test published package
         run: |
+          version="${RELEASE_TAG#v}"
           lfguard --version
+          test "$(lfguard --version)" = "lfguard ${version}"
           aws-lakeformation-guard --version
           lfguard sample --output-dir /tmp/lfguard-pypi-demo
           lfguard check \
