@@ -7,6 +7,8 @@ These files let you try `lfguard` without AWS credentials:
 - `current-snapshot.json`: a deliberately incomplete current-state snapshot.
 - `github-actions/lakeformation-drift.yml`: a copyable GitHub Actions workflow
   for scheduled or manually dispatched drift checks against live AWS state.
+- `github-actions/lakeformation-code-scanning.yml`: a copyable GitHub Actions
+  workflow that uploads lint and audit SARIF reports to GitHub Code Scanning.
 - `pre-commit/pre-commit-config.yaml`: a copyable local pre-commit hook that
   validates and lints a desired-state policy before commit.
 
@@ -136,6 +138,11 @@ Use [`github-actions/lakeformation-drift.yml`](github-actions/lakeformation-drif
 as a starting point when your policy repository already uses GitHub OIDC to
 assume an AWS role. Replace the example role ARN, region, and policy paths
 before enabling the workflow.
+
+Use [`github-actions/lakeformation-code-scanning.yml`](github-actions/lakeformation-code-scanning.yml)
+when your repository can upload SARIF to GitHub Code Scanning. It uploads
+separate `lfguard-lint` and `lfguard-audit` categories before enforcing the lint
+and drift gates.
 
 ## Copy a Pre-Commit Hook
 

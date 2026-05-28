@@ -14,6 +14,8 @@
   are missing.
 - Adds a `--github-summary` option for GitHub Actions job summaries across
   lint, summary, audit, plan, and apply workflows.
+- Adds a copyable GitHub Code Scanning workflow for lint and audit SARIF
+  uploads.
 - Adds a `--fail-on-changes` option for CI plan gates.
 - Adds a `--fail-on-severity` option for error-only audit gates.
 - Adds severity summaries to audit text, JSON, and Markdown reports.

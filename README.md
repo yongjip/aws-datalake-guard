@@ -494,12 +494,13 @@ PyPI publisher settings. The first release notes are in
   adoption questions.
 - [`docs/troubleshooting.md`](docs/troubleshooting.md): common install, AWS,
   planning, and CI issues.
-- [`docs/github-actions.md`](docs/github-actions.md): a copy-paste drift check
-  workflow using GitHub OIDC, job summaries, and uploaded report artifacts.
+- [`docs/github-actions.md`](docs/github-actions.md): copy-paste drift check
+  and Code Scanning workflows using GitHub OIDC, job summaries, SARIF, and
+  uploaded report artifacts.
 - [`docs/aws-permissions.md`](docs/aws-permissions.md): suggested minimum IAM
   permissions for read-only and apply roles.
-- [`examples/README.md`](examples/README.md): offline files, commands, a
-  copyable GitHub Actions workflow, and a pre-commit hook example.
+- [`examples/README.md`](examples/README.md): offline files, commands,
+  copyable GitHub Actions workflows, and a pre-commit hook example.
 
 ## Development
 

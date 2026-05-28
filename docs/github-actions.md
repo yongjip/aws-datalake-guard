@@ -6,6 +6,8 @@ use GitHub OIDC to assume an AWS role.
 
 The same workflow is available as a copyable file at
 [`examples/github-actions/lakeformation-drift.yml`](../examples/github-actions/lakeformation-drift.yml).
+An optional Code Scanning variant is available at
+[`examples/github-actions/lakeformation-code-scanning.yml`](../examples/github-actions/lakeformation-code-scanning.yml).
 
 ```yaml
 name: Lake Formation drift
@@ -108,3 +110,15 @@ non-zero status for `--fail-on-findings`, so the artifact upload step still has
 evidence to attach when policy lint or drift checks break the job. The SARIF
 artifacts can also be uploaded to systems that ingest static-analysis or
 governance findings.
+
+## GitHub Code Scanning
+
+When a repository can upload SARIF to GitHub Code Scanning, use the copyable
+[`lakeformation-code-scanning.yml`](../examples/github-actions/lakeformation-code-scanning.yml)
+workflow. It:
+
+- grants `security-events: write` for SARIF upload;
+- writes separate `lfguard-lint` and `lfguard-audit` SARIF categories;
+- uploads both SARIF files before enforcing the final lint and drift gates.
+
+This keeps findings visible in the Security tab even when the final gate fails.

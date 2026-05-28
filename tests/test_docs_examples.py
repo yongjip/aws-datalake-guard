@@ -84,6 +84,22 @@ class DocumentationExampleTests(unittest.TestCase):
         ):
             self.assertIn(action, docs_text)
 
+    def test_code_scanning_workflow_uploads_lint_and_audit_sarif(self):
+        root = Path(__file__).resolve().parents[1]
+        workflow_text = (root / "examples" / "github-actions" / "lakeformation-code-scanning.yml").read_text(
+            encoding="utf-8"
+        )
+
+        for expected in (
+            "security-events: write",
+            "github/codeql-action/upload-sarif@v3",
+            "artifacts/lfguard-lint.sarif",
+            "artifacts/lfguard-audit.sarif",
+            "category: lfguard-lint",
+            "category: lfguard-audit",
+        ):
+            self.assertIn(expected, workflow_text)
+
 
 def _is_external_link(target: str) -> bool:
     return target.startswith(("http://", "https://", "mailto:"))

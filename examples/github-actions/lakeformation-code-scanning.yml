@@ -1,0 +1,86 @@
+name: Lake Formation code scanning
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "31 * * * *"
+
+permissions:
+  contents: read
+  id-token: write
+  security-events: write
+
+jobs:
+  code-scanning:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::111122223333:role/LakeFormationReadOnly
+          aws-region: ap-northeast-2
+
+      - name: Install lfguard
+        run: python -m pip install "lfguard[aws,yaml]"
+
+      - name: Generate lfguard SARIF reports
+        run: |
+          mkdir -p artifacts snapshots
+
+          lfguard validate --desired policy/desired.yaml
+
+          lfguard lint \
+            --desired policy/desired.yaml \
+            --output sarif \
+            --output-file artifacts/lfguard-lint.sarif
+
+          lfguard snapshot \
+            --desired policy/desired.yaml \
+            --region ap-northeast-2 \
+            --output-file snapshots/prod-current.json
+
+          lfguard audit \
+            --desired policy/desired.yaml \
+            --current-snapshot snapshots/prod-current.json \
+            --output sarif \
+            --output-file artifacts/lfguard-audit.sarif
+
+      - name: Upload lfguard lint SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: artifacts/lfguard-lint.sarif
+          category: lfguard-lint
+
+      - name: Upload lfguard audit SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: artifacts/lfguard-audit.sarif
+          category: lfguard-audit
+
+      - name: Enforce lfguard gates
+        run: |
+          set +e
+
+          lfguard lint \
+            --desired policy/desired.yaml \
+            --fail-on-findings \
+            --github-summary
+          lint_status=$?
+
+          lfguard audit \
+            --desired policy/desired.yaml \
+            --current-snapshot snapshots/prod-current.json \
+            --output markdown \
+            --output-file artifacts/lfguard-audit.md \
+            --fail-on-findings \
+            --github-summary
+          audit_status=$?
+
+          if [ "$lint_status" -ne 0 ] || [ "$audit_status" -ne 0 ]; then
+            exit 1
+          fi
