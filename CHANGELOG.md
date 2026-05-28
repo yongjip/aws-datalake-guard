@@ -53,6 +53,7 @@
   responsibilities.
 - Adds a roadmap with near-term priorities, evaluation questions, and non-goals.
 - Adds publish-ready release notes for the first public PyPI release.
+- Documents `pipx` and `uv tool` install paths for CLI users.
 - Adds a `sample` command for generating a runnable offline demo after install,
   including a local README with copy-paste commands.
 - Adds `sample --include-ci` for generating an offline GitHub Actions demo

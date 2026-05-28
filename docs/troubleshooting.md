@@ -88,6 +88,8 @@ Confirm the exact distribution name:
 
 ```bash
 python -m pip install lfguard
+pipx install lfguard
+uv tool install lfguard
 ```
 
 The import package is `lakeformation_guard`, and the primary CLI is `lfguard`.

@@ -63,6 +63,10 @@ Live AWS commands require the AWS extra:
 python -m pip install "lfguard[aws]"
 ```
 
+For isolated CLI installs, use `pipx install lfguard` or
+`uv tool install lfguard`. Add extras with pip when you need live AWS or YAML
+support inside a project environment.
+
 ## Exit Codes
 
 | Code | Meaning |

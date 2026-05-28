@@ -53,6 +53,13 @@ values, are omitted unless the matching allow flag is set.
 python -m pip install lfguard
 ```
 
+For an isolated CLI install:
+
+```bash
+pipx install lfguard
+uv tool install lfguard
+```
+
 For live AWS usage:
 
 ```bash
