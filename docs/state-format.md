@@ -63,6 +63,11 @@ Use `resource_tags` to attach LF-Tags to Data Catalog resources:
 }
 ```
 
+AWS Lake Formation stores LF-Tag keys and values in lower case and allows only
+one value for a given LF-Tag key on a single resource. Keep desired resource
+assignments to one lower-case value per key. Use multiple values only in
+`lf_tags` definitions or LF-Tag policy expressions.
+
 Supported resource kinds are shown below. `catalog_id` is optional for each
 resource kind when you need to target a specific Glue Data Catalog.
 
@@ -120,7 +125,8 @@ With an explicit catalog:
 ### LF-Tag Policy
 
 LF-Tag policy resources are used for grants. `resource_type` must be `DATABASE`
-or `TABLE`.
+or `TABLE`. Multiple values for one key are OR, multiple keys are AND, and `*`
+means all values for a key in an LF-Tag policy grant.
 
 ```json
 {

@@ -1395,6 +1395,54 @@ class AuditCliTests(unittest.TestCase):
             ],
         )
 
+    def test_lint_desired_api_reports_lf_tag_behavior_that_will_not_match_aws(self):
+        desired = DesiredState.from_dict(
+            {
+                "lf_tags": {"Sensitivity": ["Internal", "Restricted"]},
+                "resource_tags": [
+                    {
+                        "resource": {"kind": "table", "database": "analytics", "table": "orders"},
+                        "tags": {"Sensitivity": ["Internal", "Restricted"]},
+                    }
+                ],
+                "grants": [],
+            }
+        )
+
+        findings = lint_desired(desired)
+
+        self.assertEqual(
+            [finding.code for finding in findings],
+            [
+                "LF_TAG_CASE_NORMALIZATION",
+                "RESOURCE_TAG_MULTIPLE_VALUES",
+                "LF_TAG_CASE_NORMALIZATION",
+            ],
+        )
+        self.assertEqual(findings[1].severity, "error")
+        self.assertIn("only one value", findings[1].message)
+
+    def test_lint_desired_api_allows_lf_tag_policy_wildcard_value(self):
+        desired = DesiredState.from_dict(
+            {
+                "lf_tags": {"module": ["orders"]},
+                "resource_tags": [],
+                "grants": [
+                    {
+                        "principal": "role",
+                        "resource": {
+                            "kind": "lf_tag_policy",
+                            "resource_type": "DATABASE",
+                            "expression": {"module": ["*"]},
+                        },
+                        "permissions": ["CREATE_TABLE"],
+                    }
+                ],
+            }
+        )
+
+        self.assertEqual(lint_desired(desired), ())
+
     def test_cli_lint_outputs_json_and_can_fail_on_findings(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)

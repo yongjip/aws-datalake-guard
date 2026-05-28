@@ -191,6 +191,8 @@ JSON and YAML use the same shape:
 
 Supported resource kinds are `catalog`, `database`, `table`,
 `table_with_columns`, `data_location`, and `lf_tag_policy`.
+Write LF-Tag keys and values in lower case. AWS stores them in lower case, and
+allows only one value for a given LF-Tag key on a single resource.
 See [`docs/state-format.md`](docs/state-format.md) for copyable examples of
 each resource kind and grant shape.
 

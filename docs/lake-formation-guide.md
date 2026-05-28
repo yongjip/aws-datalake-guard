@@ -48,6 +48,31 @@ The efficient pattern is:
 This keeps policy growth closer to `principals + resources` instead of
 `principals * resources`.
 
+## LF-Tag Behavior to Remember
+
+AWS stores LF-Tag keys and values in lower case. Write desired state in lower
+case so reviews, snapshots, and plans do not fight case normalization.
+
+Every LF-Tag key must be defined before it is assigned to a resource or used in
+an LF-Tag expression. A key can have up to 1000 possible values, but a single
+resource can have only one value for a given key and at most 50 assigned
+LF-Tags.
+
+Inheritance is useful, but explicit overrides matter. Tables inherit LF-Tags
+from databases, and columns inherit LF-Tags from tables. Assigning the same key
+lower in the hierarchy overrides the inherited value. Removing that explicit
+assignment restores the inherited value.
+
+Expression logic is simple but easy to misread. Multiple values for the same key
+are OR. Multiple keys are AND. For example,
+`domain=sales|finance AND classification=internal` matches sales or finance
+resources that are also internal. In LF-Tag policy grants, AWS also supports
+`*` as all values for a tag key.
+
+Deleting LF-Tag values or whole LF-Tags is dangerous. AWS does not first check
+whether the value or tag is still attached to Data Catalog resources. If the
+deleted tag or value was driving a grant, the matching permissions disappear.
+
 ## Best Practices
 
 - Keep IAM administration and Lake Formation policy review separate.
@@ -55,7 +80,6 @@ This keeps policy growth closer to `principals + resources` instead of
 - Use a separate additive apply role for creating LF-Tags, adding tag values,
   assigning tags, and granting permissions.
 - Keep revokes and removals in a separate destructive maintenance workflow.
-- Predefine LF-Tag keys and values before assignments or grants use them.
 - Use stable, low-cardinality tag keys such as domain, classification,
   environment, and owner.
 - Review `IAMAllowedPrincipals` before claiming Lake Formation is the source of
@@ -73,6 +97,8 @@ This keeps policy growth closer to `principals + resources` instead of
   API permissions.
 - Leaving broad `IAMAllowedPrincipals` or `ALLIAMPrincipals` grants unreviewed.
 - Using LF-Tags as free-form labels, ticket numbers, or table-specific aliases.
+- Writing mixed-case LF-Tags and assuming AWS will preserve the case.
+- Assigning multiple values for the same LF-Tag key to one resource.
 - Encoding an OR rule as one LF-Tag expression that actually means AND.
 - Deleting LF-Tag values without first checking resource assignments and grants.
 - Putting `--allow-permission-revokes`, `--allow-resource-tag-removals`, or
@@ -114,7 +140,12 @@ Add optional bootstrap scaffolds only when they have an owner:
 - [AWS Lake Formation personas and IAM permissions reference](https://docs.aws.amazon.com/lake-formation/latest/dg/permissions-reference.html)
 - [IAM permissions required to grant or revoke Lake Formation permissions](https://docs.aws.amazon.com/lake-formation/latest/dg/required-permissions-for-grant.html)
 - [Lake Formation tag-based access control](https://docs.aws.amazon.com/lake-formation/latest/dg/tag-based-access-control.html)
+- [Creating LF-Tags](https://docs.aws.amazon.com/lake-formation/latest/dg/TBAC-creating-tags.html)
+- [Assigning LF-Tags to Data Catalog resources](https://docs.aws.amazon.com/lake-formation/latest/dg/TBAC-assigning-tags.html)
+- [Creating LF-Tag expressions](https://docs.aws.amazon.com/lake-formation/latest/dg/TBAC-creating-tag-expressions.html)
+- [Granting data lake permissions using LF-TBAC](https://docs.aws.amazon.com/lake-formation/latest/dg/granting-catalog-perms-TBAC.html)
 - [LF-Tag best practices and considerations](https://docs.aws.amazon.com/lake-formation/latest/dg/lf-tag-considerations.html)
+- [Deleting LF-Tags](https://docs.aws.amazon.com/lake-formation/latest/dg/TBAC-deleting-tags.html)
 - [Hybrid access mode](https://docs.aws.amazon.com/lake-formation/latest/dg/hybrid-access-mode.html)
 - [Data filtering and cell-level security](https://docs.aws.amazon.com/lake-formation/latest/dg/data-filtering.html)
 - [Updating LF-Tags](https://docs.aws.amazon.com/lake-formation/latest/dg/TBAC-updating-tags.html)
