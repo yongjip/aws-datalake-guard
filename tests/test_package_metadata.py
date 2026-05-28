@@ -44,6 +44,12 @@ class PackageMetadataTests(unittest.TestCase):
         self.assertIn("license_files = LICENSE", (self.root / "setup.cfg").read_text(encoding="utf-8"))
         self.assertNotIn("License ::", classifiers)
 
+    def test_source_distribution_includes_example_workflows(self):
+        manifest = (self.root / "MANIFEST.in").read_text(encoding="utf-8")
+
+        self.assertIn("recursive-include examples *.json *.md *.yaml *.yml", manifest)
+        self.assertTrue((self.root / "examples" / "github-actions" / "lakeformation-drift.yml").exists())
+
     def test_project_urls_cover_user_evaluation_docs(self):
         project_urls = self.config["metadata"]["project_urls"]
 

@@ -5,6 +5,8 @@ These files let you try `lfguard` without AWS credentials:
 - `desired.json`: a desired Lake Formation LF-Tag and grant policy.
 - `desired.yaml`: the same desired policy in YAML.
 - `current-snapshot.json`: a deliberately incomplete current-state snapshot.
+- `github-actions/lakeformation-drift.yml`: a copyable GitHub Actions workflow
+  for scheduled or manually dispatched drift checks against live AWS state.
 
 The snapshot is missing two desired LF-Tag values, one table tag assignment, and
 one LF-Tag policy grant. That makes it useful for seeing audit findings and
@@ -104,3 +106,10 @@ lfguard plan \
   --desired examples/desired.yaml \
   --current-snapshot examples/current-snapshot.json
 ```
+
+## Copy a GitHub Actions Workflow
+
+Use [`github-actions/lakeformation-drift.yml`](github-actions/lakeformation-drift.yml)
+as a starting point when your policy repository already uses GitHub OIDC to
+assume an AWS role. Replace the example role ARN, region, and policy paths
+before enabling the workflow.

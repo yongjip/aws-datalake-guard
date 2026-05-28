@@ -30,6 +30,7 @@
   raw boto3, and console workflows.
 - Adds a troubleshooting guide for common install, AWS, planning, and CI issues.
 - Adds GitHub issue and pull request templates for safer community reports.
+- Adds a copyable GitHub Actions drift-check workflow under `examples/`.
 - Adds a `sample` command for generating a runnable offline demo after install,
   including a local README with copy-paste commands.
 - Adds a state-format guide with examples for each supported resource kind.
