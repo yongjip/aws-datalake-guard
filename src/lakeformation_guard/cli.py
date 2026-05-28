@@ -170,6 +170,7 @@ def _cmd_sample(args: argparse.Namespace) -> int:
     files = {
         "desired.json": dumps_json(_sample_desired_state()),
         "current-snapshot.json": dumps_json(_sample_current_state()),
+        "README.md": _sample_readme(),
     }
     existing = [output_dir / name for name in files if (output_dir / name).exists()]
     if existing and not args.force:
@@ -188,6 +189,7 @@ def _cmd_sample(args: argparse.Namespace) -> int:
     print("Wrote lfguard sample files to {}.\n".format(output_dir))
     print("Run:")
     print("  lfguard plan --desired {}/desired.json --current-snapshot {}/current-snapshot.json".format(output_dir, output_dir))
+    print("\nSee {}/README.md for more commands.".format(output_dir))
     return 0
 
 
@@ -545,6 +547,55 @@ def _sample_current_state() -> dict:
         ],
         "grants": [],
     }
+
+
+def _sample_readme() -> str:
+    return """# lfguard Demo
+
+This directory contains a desired Lake Formation guardrail policy and a
+deliberately incomplete current-state snapshot. It is safe to use without AWS
+credentials.
+
+## Validate
+
+```bash
+lfguard validate --desired desired.json --current-snapshot current-snapshot.json
+```
+
+## Audit Drift
+
+```bash
+lfguard audit --desired desired.json --current-snapshot current-snapshot.json
+```
+
+## Plan Safe Changes
+
+```bash
+lfguard plan --desired desired.json --current-snapshot current-snapshot.json
+```
+
+Expected summary:
+
+```text
+Plan: 3 change(s), 3 safe, 0 destructive.
+```
+
+## Save Reports
+
+```bash
+lfguard audit \\
+  --desired desired.json \\
+  --current-snapshot current-snapshot.json \\
+  --output json \\
+  --output-file lfguard-audit.json
+
+lfguard plan \\
+  --desired desired.json \\
+  --current-snapshot current-snapshot.json \\
+  --output markdown \\
+  --output-file lfguard-plan.md
+```
+"""
 
 
 def _print_plan(change_plan: Plan, output: str, *, prefix: Optional[str] = None) -> None:

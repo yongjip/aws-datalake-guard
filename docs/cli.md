@@ -96,7 +96,7 @@ lfguard plan \
 Useful options:
 
 - `--output-dir PATH`: directory to write `desired.json` and
-  `current-snapshot.json`.
+  `current-snapshot.json`, plus a local `README.md` with demo commands.
 - `--force`: overwrite existing sample files.
 
 ## `schema`

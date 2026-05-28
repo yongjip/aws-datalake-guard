@@ -24,4 +24,5 @@
 - Adds an examples guide and PyPI metadata links for first-run discoverability.
 - Adds a report-format guide for audit, plan, apply, and CI artifacts.
 - Adds a safety model guide for conservative defaults and destructive changes.
-- Adds a `sample` command for generating a runnable offline demo after install.
+- Adds a `sample` command for generating a runnable offline demo after install,
+  including a local README with copy-paste commands.

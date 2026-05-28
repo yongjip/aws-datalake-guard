@@ -552,13 +552,19 @@ class AuditCliTests(unittest.TestCase):
 
             desired_path = output_dir / "desired.json"
             current_path = output_dir / "current-snapshot.json"
+            readme_path = output_dir / "README.md"
             desired = DesiredState.from_dict(json.loads(desired_path.read_text(encoding="utf-8")))
             current = CurrentState.from_dict(json.loads(current_path.read_text(encoding="utf-8")))
+            sample_readme = readme_path.read_text(encoding="utf-8")
 
             self.assertEqual(exit_code, 0)
             self.assertIn("lfguard plan --desired", stdout.getvalue())
+            self.assertIn("README.md", stdout.getvalue())
             self.assertEqual(len(desired.lf_tags), 2)
             self.assertEqual(len(current.lf_tags), 2)
+            self.assertIn("lfguard Demo", sample_readme)
+            self.assertIn("lfguard audit --desired desired.json", sample_readme)
+            self.assertIn("lfguard plan --desired desired.json", sample_readme)
 
             plan_stdout = io.StringIO()
             with contextlib.redirect_stdout(plan_stdout):

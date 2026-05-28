@@ -44,7 +44,8 @@ lfguard plan \
 ```
 
 The generated current snapshot is deliberately incomplete, so the plan contains
-safe additive changes.
+safe additive changes. The sample directory also includes a local `README.md`
+with validate, audit, plan, and report commands.
 
 ## Use the JSON Schema
 

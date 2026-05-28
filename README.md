@@ -78,6 +78,9 @@ Generate a runnable offline demo with no AWS credentials:
 lfguard sample --output-dir lfguard-demo
 ```
 
+The command writes `desired.json`, `current-snapshot.json`, and a short
+`README.md` with copy-paste commands.
+
 Plan against the generated desired state and deliberately incomplete snapshot:
 
 ```bash
