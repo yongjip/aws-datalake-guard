@@ -40,6 +40,16 @@ jobs:
         run: python -m build
       - name: Check distributions
         run: python -m twine check dist/*
+      - name: Smoke test built wheel
+        run: |
+          python -m venv /tmp/lfguard-wheel-smoke
+          /tmp/lfguard-wheel-smoke/bin/python -m pip install --no-index --find-links dist lfguard
+          /tmp/lfguard-wheel-smoke/bin/lfguard --version
+          /tmp/lfguard-wheel-smoke/bin/lfguard sample --output-dir /tmp/lfguard-demo
+          /tmp/lfguard-wheel-smoke/bin/lfguard plan \
+            --desired /tmp/lfguard-demo/desired.json \
+            --current-snapshot /tmp/lfguard-demo/current-snapshot.json
+          /tmp/lfguard-wheel-smoke/bin/python -c "from lakeformation_guard import DesiredState, CurrentState, audit, plan; print(DesiredState.__name__, CurrentState.__name__, callable(audit), callable(plan))"
       - uses: actions/upload-artifact@v4
         with:
           name: lfguard-distributions

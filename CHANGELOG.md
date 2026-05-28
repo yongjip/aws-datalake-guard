@@ -28,3 +28,4 @@
   including a local README with copy-paste commands.
 - Adds a state-format guide with examples for each supported resource kind.
 - Adds an AWS API coverage guide for live inventory and apply calls.
+- Adds CI and release workflow smoke tests for the built wheel.

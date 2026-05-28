@@ -17,7 +17,8 @@ Configure a pending publisher in PyPI with:
 - Environment: `pypi`
 
 Then publish a GitHub release for a tag such as `v0.1.0`. The release workflow
-builds the artifacts, checks them, and uploads to PyPI through OIDC.
+builds the artifacts, checks them, smoke-tests the built wheel through an
+installed `lfguard` CLI, and uploads to PyPI through OIDC.
 
 ## Manual Fallback
 
