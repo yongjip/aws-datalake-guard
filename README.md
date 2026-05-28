@@ -83,6 +83,14 @@ The command writes `desired.json`, `current-snapshot.json`, a short `README.md`
 with copy-paste commands, and an optional offline GitHub Actions workflow under
 `.github/workflows/lfguard-demo.yml`.
 
+Check that the generated files are valid and lint-clean:
+
+```bash
+lfguard check \
+  --desired lfguard-demo/desired.json \
+  --current-snapshot lfguard-demo/current-snapshot.json
+```
+
 Plan against the generated desired state and deliberately incomplete snapshot:
 
 ```bash

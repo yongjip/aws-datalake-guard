@@ -326,6 +326,11 @@ def _cmd_sample(args: argparse.Namespace) -> int:
     print("Wrote lfguard sample files to {}.\n".format(output_dir))
     print("Run:")
     desired_name, current_name = _sample_primary_files(args.format)
+    print(
+        "  lfguard check --desired {}/{} --current-snapshot {}/{}".format(
+            output_dir, desired_name, output_dir, current_name
+        )
+    )
     print("  lfguard plan --desired {}/{} --current-snapshot {}/{}".format(output_dir, desired_name, output_dir, current_name))
     if args.include_ci:
         print("\nGitHub Actions demo workflow:")

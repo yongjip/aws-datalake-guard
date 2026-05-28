@@ -11,6 +11,9 @@ Install the base package and generate sample files:
 ```bash
 python -m pip install lfguard
 lfguard sample --output-dir lfguard-demo
+lfguard check \
+  --desired lfguard-demo/desired.json \
+  --current-snapshot lfguard-demo/current-snapshot.json
 lfguard plan \
   --desired lfguard-demo/desired.json \
   --current-snapshot lfguard-demo/current-snapshot.json

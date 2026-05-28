@@ -678,6 +678,7 @@ class AuditCliTests(unittest.TestCase):
 
             self.assertEqual(exit_code, 0)
             self.assertIn("lfguard plan --desired", stdout.getvalue())
+            self.assertIn("lfguard check --desired", stdout.getvalue())
             self.assertIn("README.md", stdout.getvalue())
             self.assertEqual(len(desired.lf_tags), 2)
             self.assertEqual(len(current.lf_tags), 2)
