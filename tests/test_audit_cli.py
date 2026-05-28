@@ -93,6 +93,88 @@ class AuditCliTests(unittest.TestCase):
                 ["lf_tag.create", "grant.add_permissions"],
             )
 
+    def test_cli_plan_outputs_markdown(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            desired_path = tmp_path / "desired.json"
+            current_path = tmp_path / "current.json"
+            desired_path.write_text(
+                json.dumps(
+                    {
+                        "lf_tags": {"sensitivity": ["internal"]},
+                        "grants": [
+                            {
+                                "principal": "role",
+                                "resource": {"kind": "database", "database": "analytics"},
+                                "permissions": ["DESCRIBE"],
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            current_path.write_text(json.dumps({"lf_tags": {}, "grants": []}), encoding="utf-8")
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                exit_code = main(
+                    [
+                        "plan",
+                        "--desired",
+                        str(desired_path),
+                        "--current-snapshot",
+                        str(current_path),
+                        "--output",
+                        "markdown",
+                    ]
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertIn("### lfguard plan", stdout.getvalue())
+            self.assertIn("| Safety | Action | Target | Reason |", stdout.getvalue())
+            self.assertIn("| safe | lf_tag.create | lf_tag:sensitivity | LF-Tag is missing |", stdout.getvalue())
+
+    def test_cli_audit_outputs_markdown(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            desired_path = tmp_path / "desired.json"
+            current_path = tmp_path / "current.json"
+            desired_path.write_text(
+                json.dumps(
+                    {
+                        "lf_tags": {"sensitivity": ["internal"]},
+                        "grants": [
+                            {
+                                "principal": "role",
+                                "resource": {"kind": "database", "database": "analytics"},
+                                "permissions": ["DESCRIBE"],
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            current_path.write_text(json.dumps({"lf_tags": {"sensitivity": ["restricted"]}, "grants": []}), encoding="utf-8")
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                exit_code = main(
+                    [
+                        "audit",
+                        "--desired",
+                        str(desired_path),
+                        "--current-snapshot",
+                        str(current_path),
+                        "--output",
+                        "markdown",
+                    ]
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertIn("### lfguard audit", stdout.getvalue())
+            self.assertIn("| Severity | Code | Target | Message |", stdout.getvalue())
+            self.assertIn("LF_TAG_VALUES_MISSING", stdout.getvalue())
+
     def test_cli_init_writes_valid_starter_policy(self):
         with tempfile.TemporaryDirectory() as tmp:
             output_path = Path(tmp) / "policy" / "desired.json"

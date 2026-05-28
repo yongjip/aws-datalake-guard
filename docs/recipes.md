@@ -50,6 +50,18 @@ lfguard audit \
 Use this for pull requests when you want drift to block merge until the desired
 policy or AWS state is reconciled.
 
+## Write a GitHub Summary
+
+Use Markdown output when a workflow should leave a readable summary:
+
+```bash
+lfguard audit \
+  --desired policy/desired.json \
+  --current-snapshot snapshots/prod-current.json \
+  --fail-on-findings \
+  --output markdown >> "$GITHUB_STEP_SUMMARY"
+```
+
 ## Capture a Live Snapshot
 
 Generate the current-state snapshot from AWS using the desired-state file as the

@@ -172,6 +172,15 @@ lfguard audit \
   --fail-on-findings
 ```
 
+Use Markdown output for pull request comments or GitHub Actions summaries:
+
+```bash
+lfguard plan \
+  --desired desired.json \
+  --current-snapshot current.json \
+  --output markdown
+```
+
 Export a live current-state snapshot for the resources and principals referenced
 by a desired-state file:
 

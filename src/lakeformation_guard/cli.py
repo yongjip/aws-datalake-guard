@@ -62,7 +62,7 @@ def build_parser() -> argparse.ArgumentParser:
     audit_parser = subparsers.add_parser("audit", help="Report drift between desired and current Lake Formation state.")
     _add_state_args(audit_parser)
     _add_aws_args(audit_parser)
-    _add_output_arg(audit_parser)
+    _add_output_arg(audit_parser, markdown=True)
     audit_parser.add_argument("--fail-on-findings", action="store_true", help="Exit with status 1 when any finding is present.")
 
     validate_parser = subparsers.add_parser("validate", help="Validate desired/current state files without AWS access.")
@@ -72,7 +72,7 @@ def build_parser() -> argparse.ArgumentParser:
     plan_parser = subparsers.add_parser("plan", help="Produce a conservative Lake Formation change plan.")
     _add_state_args(plan_parser)
     _add_aws_args(plan_parser)
-    _add_output_arg(plan_parser)
+    _add_output_arg(plan_parser, markdown=True)
     _add_plan_option_args(plan_parser)
 
     snapshot_parser = subparsers.add_parser("snapshot", help="Export live AWS state for a desired policy scope.")
@@ -83,7 +83,7 @@ def build_parser() -> argparse.ArgumentParser:
     apply_parser = subparsers.add_parser("apply", help="Dry-run or execute a Lake Formation change plan.")
     _add_state_args(apply_parser)
     _add_aws_args(apply_parser)
-    _add_output_arg(apply_parser)
+    _add_output_arg(apply_parser, markdown=True)
     _add_plan_option_args(apply_parser)
     apply_parser.add_argument("--execute", action="store_true", help="Apply the computed plan. Defaults to dry-run.")
 
@@ -207,8 +207,9 @@ def _add_aws_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--catalog-id", help="AWS Glue Data Catalog ID.")
 
 
-def _add_output_arg(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--output", choices=("text", "json"), default="text", help="Output format.")
+def _add_output_arg(parser: argparse.ArgumentParser, *, markdown: bool = False) -> None:
+    choices = ("text", "json", "markdown") if markdown else ("text", "json")
+    parser.add_argument("--output", choices=choices, default="text", help="Output format.")
 
 
 def _add_plan_option_args(parser: argparse.ArgumentParser) -> None:
@@ -305,6 +306,9 @@ def _print_plan(change_plan: Plan, output: str, *, prefix: Optional[str] = None)
             data = {"message": prefix, "plan": data}
         print(dumps_json(data), end="")
         return
+    if output == "markdown":
+        _print_plan_markdown(change_plan, prefix=prefix)
+        return
     if prefix:
         print(prefix)
     summary = change_plan.summary()
@@ -325,10 +329,42 @@ def _print_plan(change_plan: Plan, output: str, *, prefix: Optional[str] = None)
         ))
 
 
+def _print_plan_markdown(change_plan: Plan, *, prefix: Optional[str] = None) -> None:
+    if prefix:
+        print(prefix)
+        print()
+    summary = change_plan.summary()
+    print("### lfguard plan")
+    print()
+    print("- Total changes: {total}".format(**summary))
+    print("- Safe changes: {safe}".format(**summary))
+    print("- Destructive changes: {destructive}".format(**summary))
+    if not change_plan.changes:
+        print()
+        print("No changes.")
+        return
+    print()
+    print("| Safety | Action | Target | Reason |")
+    print("| --- | --- | --- | --- |")
+    for change in change_plan.changes:
+        marker = "destructive" if change.destructive else "safe"
+        print(
+            "| {safety} | {action} | {target} | {reason} |".format(
+                safety=_markdown_cell(marker),
+                action=_markdown_cell(change.action),
+                target=_markdown_cell(change.target),
+                reason=_markdown_cell(change.reason),
+            )
+        )
+
+
 def _print_findings(findings: Iterable[AuditFinding], output: str) -> None:
     findings = tuple(findings)
     if output == "json":
         print(dumps_json({"findings": [finding.to_dict() for finding in findings]}), end="")
+        return
+    if output == "markdown":
+        _print_findings_markdown(findings)
         return
     if not findings:
         print("No findings.")
@@ -341,3 +377,29 @@ def _print_findings(findings: Iterable[AuditFinding], output: str) -> None:
             target=finding.target,
             message=finding.message,
         ))
+
+
+def _print_findings_markdown(findings: Iterable[AuditFinding]) -> None:
+    findings = tuple(findings)
+    print("### lfguard audit")
+    print()
+    if not findings:
+        print("No findings.")
+        return
+    print("Findings: {}.".format(len(findings)))
+    print()
+    print("| Severity | Code | Target | Message |")
+    print("| --- | --- | --- | --- |")
+    for finding in findings:
+        print(
+            "| {severity} | {code} | {target} | {message} |".format(
+                severity=_markdown_cell(finding.severity),
+                code=_markdown_cell(finding.code),
+                target=_markdown_cell(finding.target),
+                message=_markdown_cell(finding.message),
+            )
+        )
+
+
+def _markdown_cell(value: object) -> str:
+    return str(value).replace("\\", "\\\\").replace("|", "\\|").replace("\n", "<br>")
