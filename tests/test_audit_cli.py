@@ -756,6 +756,42 @@ class AuditCliTests(unittest.TestCase):
             self.assertIn(".github/CODEOWNERS", readme)
             self.assertIn("@example/data-platform", readme)
 
+    def test_cli_bootstrap_can_include_editor_config_for_json_layout(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output_dir = Path(tmp) / "policy-repo"
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                exit_code = main(
+                    [
+                        "bootstrap",
+                        "--output-dir",
+                        str(output_dir),
+                        "--include-editor-config",
+                    ]
+                )
+
+            settings_path = output_dir / ".vscode" / "settings.json"
+            readme_path = output_dir / "README.md"
+            settings = json.loads(settings_path.read_text(encoding="utf-8"))
+            readme = readme_path.read_text(encoding="utf-8")
+
+            self.assertEqual(exit_code, 0)
+            self.assertIn(str(settings_path), stdout.getvalue())
+            self.assertFalse((output_dir / ".vscode" / "extensions.json").exists())
+            self.assertEqual(
+                settings["json.schemas"],
+                [
+                    {
+                        "fileMatch": ["policy/desired.json", "snapshots/*.json"],
+                        "url": "./policy/lfguard.schema.json",
+                    }
+                ],
+            )
+            self.assertIn(".vscode/settings.json", readme)
+            self.assertIn("Editor Validation", readme)
+            self.assertIn("policy/desired.json", readme)
+
     def test_cli_bootstrap_can_write_yaml_layout(self):
         with tempfile.TemporaryDirectory() as tmp:
             output_dir = Path(tmp) / "policy-repo"
@@ -843,6 +879,41 @@ class AuditCliTests(unittest.TestCase):
             self.assertIn("lfguard check --desired policy/desired.yaml", pr_template)
             self.assertIn("lfguard summary --desired policy/desired.yaml", pr_template)
             self.assertNotIn("policy/desired.json", pr_template)
+
+    def test_cli_bootstrap_editor_config_recommends_yaml_extension_for_yaml_layout(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output_dir = Path(tmp) / "policy-repo"
+
+            with contextlib.redirect_stdout(io.StringIO()):
+                exit_code = main(
+                    [
+                        "bootstrap",
+                        "--output-dir",
+                        str(output_dir),
+                        "--format",
+                        "yaml",
+                        "--include-editor-config",
+                    ]
+                )
+
+            settings = json.loads((output_dir / ".vscode" / "settings.json").read_text(encoding="utf-8"))
+            extensions = json.loads((output_dir / ".vscode" / "extensions.json").read_text(encoding="utf-8"))
+            readme = (output_dir / "README.md").read_text(encoding="utf-8")
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(
+                settings["yaml.schemas"],
+                {
+                    "./policy/lfguard.schema.json": [
+                        "policy/desired.yaml",
+                        "snapshots/*.yaml",
+                        "snapshots/*.yml",
+                    ]
+                },
+            )
+            self.assertEqual(extensions["recommendations"], ["redhat.vscode-yaml"])
+            self.assertIn(".vscode/extensions.json", readme)
+            self.assertIn("policy/desired.yaml", readme)
 
     def test_cli_bootstrap_refuses_to_overwrite_without_force(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1108,6 +1179,7 @@ class AuditCliTests(unittest.TestCase):
         self.assertIn("bootstrap", script)
         self.assertIn("--include-code-scanning", script)
         self.assertIn("--include-review-template", script)
+        self.assertIn("--include-editor-config", script)
         self.assertIn("--include-glue-read", script)
 
     def test_cli_completion_outputs_zsh_script(self):

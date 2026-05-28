@@ -136,12 +136,15 @@ Useful options:
   upload. This also writes `iam/lfguard-read-only.json`.
 - `--include-review-template`: also write `.github/CODEOWNERS` and
   `.github/pull_request_template.md` for Lake Formation policy review.
+- `--include-editor-config`: also write `.vscode/settings.json` so VS Code
+  validates the desired policy against `policy/lfguard.schema.json`. YAML
+  bootstraps also get `.vscode/extensions.json` recommending YAML support.
 - `--policy-owner OWNER`: CODEOWNERS owner for generated policy review files.
 - `--aws-role-arn ARN`: role ARN to place in generated live AWS workflows.
 - `--aws-region REGION`: AWS region to place in generated live AWS workflows.
 - `--force`: overwrite existing bootstrap files.
 
-Live drift, Code Scanning, and review bootstrap example:
+Live drift, Code Scanning, review, and editor bootstrap example:
 
 ```bash
 lfguard bootstrap \
@@ -149,6 +152,7 @@ lfguard bootstrap \
   --include-live-drift \
   --include-code-scanning \
   --include-review-template \
+  --include-editor-config \
   --policy-owner @your-org/data-platform \
   --aws-role-arn arn:aws:iam::111122223333:role/LakeFormationReadOnly \
   --aws-region ap-northeast-2

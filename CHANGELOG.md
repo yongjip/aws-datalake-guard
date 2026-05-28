@@ -83,6 +83,8 @@
   `lfguard` lint and drift SARIF findings to GitHub Code Scanning.
 - Adds an optional `bootstrap --include-review-template` scaffold for CODEOWNERS
   and Lake Formation policy pull request checklists.
+- Adds an optional `bootstrap --include-editor-config` scaffold for VS Code
+  schema validation against generated desired policy files.
 - Adds docs tests for internal Markdown links.
 - Adds package metadata tests for version, console scripts, and project URLs.
 - Modernizes the build backend requirement for current setuptools releases.

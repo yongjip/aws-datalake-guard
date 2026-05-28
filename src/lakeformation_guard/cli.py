@@ -133,6 +133,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Also write CODEOWNERS and a pull request checklist for policy review.",
     )
     bootstrap_parser.add_argument(
+        "--include-editor-config",
+        action="store_true",
+        help="Also write VS Code settings for lfguard schema validation.",
+    )
+    bootstrap_parser.add_argument(
         "--policy-owner",
         default="@your-org/data-platform",
         help="CODEOWNERS owner for generated policy review files.",
@@ -377,6 +382,7 @@ def _cmd_bootstrap(args: argparse.Namespace) -> int:
         include_live_drift=args.include_live_drift,
         include_code_scanning=args.include_code_scanning,
         include_review_template=args.include_review_template,
+        include_editor_config=args.include_editor_config,
         policy_owner=args.policy_owner,
         aws_role_arn=args.aws_role_arn,
         aws_region=args.aws_region,
@@ -413,6 +419,11 @@ def _cmd_bootstrap(args: argparse.Namespace) -> int:
         print("\nReview files:")
         print("  {}/.github/CODEOWNERS".format(output_dir))
         print("  {}/.github/pull_request_template.md".format(output_dir))
+    if args.include_editor_config:
+        print("\nEditor config:")
+        print("  {}/.vscode/settings.json".format(output_dir))
+        if args.format == "yaml":
+            print("  {}/.vscode/extensions.json".format(output_dir))
     print("\nSee {}/README.md for rollout steps.".format(output_dir))
     return 0
 
@@ -853,6 +864,7 @@ _COMPLETION_OPTIONS = {
         "--include-live-drift",
         "--include-code-scanning",
         "--include-review-template",
+        "--include-editor-config",
         "--policy-owner",
         "--aws-role-arn",
         "--aws-region",
@@ -1344,6 +1356,7 @@ def _bootstrap_files(
     include_live_drift: bool = False,
     include_code_scanning: bool = False,
     include_review_template: bool = False,
+    include_editor_config: bool = False,
     policy_owner: str = "@your-org/data-platform",
     aws_role_arn: str = "arn:aws:iam::111122223333:role/LakeFormationReadOnly",
     aws_region: str = "us-east-1",
@@ -1365,6 +1378,7 @@ def _bootstrap_files(
             include_live_drift=include_live_drift,
             include_code_scanning=include_code_scanning,
             include_review_template=include_review_template,
+            include_editor_config=include_editor_config,
             policy_owner=policy_owner,
             aws_role_arn=aws_role_arn,
             aws_region=aws_region,
@@ -1389,6 +1403,10 @@ def _bootstrap_files(
     if include_review_template:
         files[".github/CODEOWNERS"] = _bootstrap_codeowners(policy_owner)
         files[".github/pull_request_template.md"] = _bootstrap_pull_request_template(desired_path)
+    if include_editor_config:
+        files[".vscode/settings.json"] = _bootstrap_vscode_settings(desired_path, needs_yaml_extra=needs_yaml_extra)
+        if needs_yaml_extra:
+            files[".vscode/extensions.json"] = _bootstrap_vscode_extensions()
     return files
 
 
@@ -1735,6 +1753,38 @@ Describe the policy intent, expected drift, and rollout or rollback plan.
     )
 
 
+def _bootstrap_vscode_settings(desired_path: str, *, needs_yaml_extra: bool) -> str:
+    if needs_yaml_extra:
+        return dumps_json(
+            {
+                "yaml.schemas": {
+                    "./policy/lfguard.schema.json": [
+                        desired_path,
+                        "snapshots/*.yaml",
+                        "snapshots/*.yml",
+                    ]
+                }
+            }
+        )
+    return dumps_json(
+        {
+            "json.schemas": [
+                {
+                    "fileMatch": [
+                        desired_path,
+                        "snapshots/*.json",
+                    ],
+                    "url": "./policy/lfguard.schema.json",
+                }
+            ]
+        }
+    )
+
+
+def _bootstrap_vscode_extensions() -> str:
+    return dumps_json({"recommendations": ["redhat.vscode-yaml"]})
+
+
 def _bootstrap_readme(
     desired_path: str,
     *,
@@ -1742,6 +1792,7 @@ def _bootstrap_readme(
     include_live_drift: bool = False,
     include_code_scanning: bool = False,
     include_review_template: bool = False,
+    include_editor_config: bool = False,
     policy_owner: str = "@your-org/data-platform",
     aws_role_arn: str = "arn:aws:iam::111122223333:role/LakeFormationReadOnly",
     aws_region: str = "us-east-1",
@@ -1812,6 +1863,33 @@ with the CI workflows your repository enables.
 """.format(
             policy_owner=policy_owner,
         )
+    editor_files = ""
+    editor_steps = ""
+    if include_editor_config:
+        editor_files = """- `.vscode/settings.json`: editor schema association for `{desired_path}`.
+""".format(
+            desired_path=desired_path,
+        )
+        if needs_yaml_extra:
+            editor_files += "- `.vscode/extensions.json`: VS Code YAML extension recommendation.\n"
+            editor_steps = """
+## Editor Validation
+
+Open this directory in VS Code to validate `{desired_path}` against
+`policy/lfguard.schema.json`. Install the recommended YAML extension from
+`.vscode/extensions.json` if VS Code prompts you.
+""".format(
+                desired_path=desired_path,
+            )
+        else:
+            editor_steps = """
+## Editor Validation
+
+Open this directory in VS Code to validate `{desired_path}` against
+`policy/lfguard.schema.json`.
+""".format(
+                desired_path=desired_path,
+            )
     return """# lfguard Policy Bootstrap
 
 This directory is a starter Lake Formation policy-as-code layout generated by
@@ -1826,6 +1904,7 @@ This directory is a starter Lake Formation policy-as-code layout generated by
 - `.pre-commit-config.yaml`: local check hook.
 {workflow_files}
 {review_files}
+{editor_files}
 
 ## First Checks
 
@@ -1836,17 +1915,20 @@ lfguard summary --desired {desired_path}
 ```
 {workflow_steps}
 {review_steps}
+{editor_steps}
 
 ## Next Steps
 
 1. Replace example LF-Tag keys, values, resources, and principals with sanitized
    names from your environment.
 2. Commit the policy file, schema, workflow, pre-commit configuration, and any
-   generated review files.
+   generated review or editor files.
 3. {live_drift_next_step}
 4. Review every `lfguard plan` before using `lfguard apply --execute`.
 """.format(
         desired_path=desired_path,
+        editor_files=editor_files,
+        editor_steps=editor_steps,
         install_command=install_command,
         review_files=review_files,
         review_steps=review_steps,

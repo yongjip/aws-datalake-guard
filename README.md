@@ -231,6 +231,12 @@ lfguard bootstrap \
   --policy-owner @your-org/data-platform
 ```
 
+Include VS Code schema validation for the generated desired policy:
+
+```bash
+lfguard bootstrap --output-dir lfguard-policy --include-editor-config
+```
+
 Create a starter desired-state file:
 
 ```bash
