@@ -23,3 +23,4 @@
 - Ships offline JSON/YAML desired-state workflows and example policy files.
 - Adds an examples guide and PyPI metadata links for first-run discoverability.
 - Adds a report-format guide for audit, plan, apply, and CI artifacts.
+- Adds a safety model guide for conservative defaults and destructive changes.
