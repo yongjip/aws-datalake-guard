@@ -249,6 +249,12 @@ Lint the desired policy for undefined LF-Tag references:
 lfguard lint --desired desired.json --fail-on-findings
 ```
 
+Run the local CI gate in one command:
+
+```bash
+lfguard check --desired desired.json --current-snapshot current.json --fail-on-findings
+```
+
 Summarize policy contents for review:
 
 ```bash
@@ -357,6 +363,12 @@ lfguard plan \
 In GitHub Actions, append the Markdown report directly to the job summary:
 
 ```bash
+lfguard check \
+  --desired desired.json \
+  --current-snapshot current.json \
+  --fail-on-findings \
+  --github-summary
+
 lfguard lint \
   --desired desired.json \
   --fail-on-findings \

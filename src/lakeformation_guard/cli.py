@@ -42,6 +42,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             return _cmd_permissions(args)
         if args.command == "completion":
             return _cmd_completion(args)
+        if args.command == "check":
+            return _cmd_check(args)
         if args.command == "plan":
             return _cmd_plan(args)
         if args.command == "audit":
@@ -154,6 +156,20 @@ def build_parser() -> argparse.ArgumentParser:
         help="Shell completion format to emit. Defaults to bash.",
     )
     _add_report_output_file_arg(completion_parser)
+
+    check_parser = subparsers.add_parser("check", help="Validate and lint local policy files without AWS access.")
+    check_parser.add_argument("--desired", required=True, help="Desired state JSON/YAML file.")
+    check_parser.add_argument("--current-snapshot", help="Current state JSON/YAML snapshot to also validate.")
+    _add_output_arg(check_parser, markdown=True)
+    _add_report_output_file_arg(check_parser)
+    _add_github_summary_arg(check_parser)
+    check_parser.add_argument("--fail-on-findings", action="store_true", help="Exit with status 1 when any lint finding is present.")
+    check_parser.add_argument(
+        "--fail-on-severity",
+        choices=("any", "error"),
+        default="any",
+        help="Lint finding severity that triggers --fail-on-findings. Defaults to any finding.",
+    )
 
     audit_parser = subparsers.add_parser("audit", help="Report drift between desired and current Lake Formation state.")
     _add_state_args(audit_parser)
@@ -382,6 +398,24 @@ def _cmd_permissions(args: argparse.Namespace) -> int:
 
 def _cmd_completion(args: argparse.Namespace) -> int:
     _emit_output(_render_completion(args.shell), args.output_file, label="completion script")
+    return 0
+
+
+def _cmd_check(args: argparse.Namespace) -> int:
+    desired = load_desired(args.desired)
+    current = load_current(args.current_snapshot) if args.current_snapshot else None
+    desired_summary = _state_summary(desired)
+    current_summary = _state_summary(current) if current else None
+    findings = lint_desired(desired)
+    if args.github_summary:
+        _append_github_summary(_render_check_report(desired_summary, current_summary, findings, "markdown"))
+    _emit_output(
+        _render_check_report(desired_summary, current_summary, findings, args.output),
+        args.output_file,
+        label="check report",
+    )
+    if args.fail_on_findings and _should_fail_on_lint_findings(findings, args.fail_on_severity):
+        return 1
     return 0
 
 
@@ -745,6 +779,7 @@ _COMPLETION_COMMANDS = (
     "doctor",
     "permissions",
     "completion",
+    "check",
     "validate",
     "lint",
     "summary",
@@ -763,6 +798,16 @@ _COMPLETION_OPTIONS = {
     "doctor": ("--output", "--output-file", "--require", "--help"),
     "permissions": ("--template", "--include-glue-read", "--output", "--output-file", "--help"),
     "completion": ("--shell", "--output-file", "--help"),
+    "check": (
+        "--desired",
+        "--current-snapshot",
+        "--output",
+        "--output-file",
+        "--github-summary",
+        "--fail-on-findings",
+        "--fail-on-severity",
+        "--help",
+    ),
     "validate": ("--desired", "--current-snapshot", "--output", "--output-file", "--help"),
     "lint": (
         "--desired",
@@ -935,6 +980,91 @@ def _render_fish_completion() -> str:
             )
     lines.append("")
     return "\n".join(lines)
+
+
+def _render_check_report(
+    desired_summary: dict,
+    current_summary: Optional[dict],
+    findings: Iterable[LintFinding],
+    output: str,
+) -> str:
+    findings = tuple(findings)
+    lint_summary = _lint_finding_summary(findings)
+    if output == "json":
+        payload: Any = {
+            "valid": True,
+            "desired": {"valid": True, **desired_summary},
+            "lint": {
+                "summary": lint_summary,
+                "findings": [finding.to_dict() for finding in findings],
+            },
+        }
+        if current_summary:
+            payload["current_snapshot"] = {"valid": True, **current_summary}
+        return dumps_json(payload)
+    if output == "markdown":
+        return _render_check_report_markdown(desired_summary, current_summary, findings)
+
+    lines = ["lfguard check {}.".format("passed" if not findings else "completed with lint findings")]
+    lines.append(_format_validation_summary("Desired state is valid", desired_summary))
+    if current_summary:
+        lines.append(_format_validation_summary("Current snapshot is valid", current_summary))
+    lint_text = _render_lint_findings(findings, "text").rstrip()
+    if lint_text:
+        lines.append(lint_text)
+    return "\n".join(lines) + "\n"
+
+
+def _render_check_report_markdown(
+    desired_summary: dict,
+    current_summary: Optional[dict],
+    findings: Iterable[LintFinding],
+) -> str:
+    findings = tuple(findings)
+    lint_summary = _lint_finding_summary(findings)
+    lines = [
+        "### lfguard check",
+        "",
+        "#### Validation",
+        "",
+        "| File | Status | LF-Tag definitions | Resource tag assignments | Grants |",
+        "| --- | --- | --- | --- | --- |",
+        "| desired | valid | {lf_tags} | {resource_tags} | {grants} |".format(**desired_summary),
+    ]
+    if current_summary:
+        lines.append(
+            "| current snapshot | valid | {lf_tags} | {resource_tags} | {grants} |".format(**current_summary)
+        )
+    lines.extend(
+        [
+            "",
+            "#### Lint",
+            "",
+        ]
+    )
+    if not findings:
+        lines.append("No lint findings.")
+        return "\n".join(lines) + "\n"
+    lines.extend(
+        [
+            "- Total findings: {total}".format(**lint_summary),
+            "- Error findings: {errors}".format(**lint_summary),
+            "- Warning findings: {warnings}".format(**lint_summary),
+            "",
+            "| Severity | Code | Target | Message |",
+            "| --- | --- | --- | --- |",
+        ]
+    )
+    for finding in findings:
+        lines.append(
+            "| {severity} | {code} | {target} | {message} |".format(
+                severity=_markdown_cell(finding.severity),
+                code=_markdown_cell(finding.code),
+                target=_markdown_cell(finding.target),
+                message=_markdown_cell(finding.message),
+            )
+        )
+    return "\n".join(lines) + "\n"
 
 
 def _render_validation(desired_summary: dict, current_summary: Optional[dict], output: str) -> str:

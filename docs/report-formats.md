@@ -128,6 +128,49 @@ lfguard lint \
   --output-file artifacts/lfguard-lint.sarif
 ```
 
+## Check Reports
+
+Use check reports when CI should validate local files and lint desired policy in
+one offline command:
+
+```bash
+lfguard check \
+  --desired examples/desired.json \
+  --current-snapshot examples/current-snapshot.json \
+  --output json
+```
+
+JSON check reports combine validation counts and lint findings:
+
+```json
+{
+  "valid": true,
+  "desired": {
+    "valid": true,
+    "lf_tags": 2,
+    "resource_tags": 1,
+    "grants": 1
+  },
+  "current_snapshot": {
+    "valid": true,
+    "lf_tags": 2,
+    "resource_tags": 1,
+    "grants": 0
+  },
+  "lint": {
+    "summary": {
+      "total": 0,
+      "errors": 0,
+      "warnings": 0
+    },
+    "findings": []
+  }
+}
+```
+
+Markdown check reports include validation counts plus the same lint finding
+table used by `lfguard lint`.
+
 ## Summary Reports
 
 Use summary reports when reviewers need a compact inventory before reading the

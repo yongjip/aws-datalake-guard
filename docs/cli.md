@@ -19,6 +19,7 @@ Use `lfguard --help` or `lfguard <command> --help` for argparse-generated help.
 | `doctor` | Check the local install and optional extras. | No |
 | `permissions` | Emit starter IAM policies for live AWS workflows. | No |
 | `completion` | Emit shell completion scripts for bash, zsh, or fish. | No |
+| `check` | Validate and lint local policy files in one CI-friendly command. | No |
 | `validate` | Parse and validate local desired/current state files. | No |
 | `lint` | Check desired policy semantics, such as undefined LF-Tag references. | No |
 | `summary` | Summarize desired and optional current state for review. | No |
@@ -41,9 +42,9 @@ State-aware commands use these options:
   and `lint` support SARIF; `permissions`, `lint`, `summary`, `audit`, `plan`,
   and `apply` support Markdown.
 - `--output-file PATH`: write the command report to a file instead of stdout
-  where supported. `doctor`, `permissions`, `completion`, `validate`, `lint`,
-  `summary`, `audit`, `plan`, and `apply` support this for reports; `init`,
-  `schema`, and `snapshot` use it for generated files.
+  where supported. `doctor`, `permissions`, `completion`, `check`, `validate`,
+  `lint`, `summary`, `audit`, `plan`, and `apply` support this for reports;
+  `init`, `schema`, and `snapshot` use it for generated files.
 - `--github-summary`: append a Markdown report to `$GITHUB_STEP_SUMMARY` where
   supported.
 
@@ -67,14 +68,15 @@ python -m pip install "lfguard[aws]"
 | Code | Meaning |
 | --- | --- |
 | `0` | Command completed successfully. |
-| `1` | A CI gate failed, such as `audit --fail-on-findings` or `plan --fail-on-changes`. |
+| `1` | A CI gate failed, such as `check --fail-on-findings`, `audit --fail-on-findings`, or `plan --fail-on-changes`. |
 | `2` | CLI usage, file format, validation, or runtime configuration error. |
 
-Report files and GitHub summaries are written before `lint --fail-on-findings`,
-`audit --fail-on-findings`, or `plan --fail-on-changes` return exit code `1`.
+Report files and GitHub summaries are written before `check --fail-on-findings`,
+`lint --fail-on-findings`, `audit --fail-on-findings`, or
+`plan --fail-on-changes` return exit code `1`.
 
 See [`report-formats.md`](report-formats.md) for JSON and Markdown payload
-examples for audit, plan, and apply reports.
+examples for check, summary, audit, plan, and apply reports.
 
 ## `init`
 
@@ -211,6 +213,28 @@ Useful options:
 - `--shell bash|zsh|fish`: choose the shell format. Defaults to `bash`.
 - `--output-file PATH`: write the completion script to a file instead of
   stdout.
+
+## `check`
+
+Validate and lint local policy files in one offline command:
+
+```bash
+lfguard check --desired policy/desired.json --fail-on-findings
+lfguard check \
+  --desired policy/desired.json \
+  --current-snapshot snapshots/prod-current.json \
+  --output markdown \
+  --output-file artifacts/lfguard-check.md \
+  --github-summary \
+  --fail-on-findings
+```
+
+Useful options:
+
+- `--current-snapshot PATH`: also validate a current-state snapshot file.
+- `--fail-on-findings`: return exit code `1` when any lint finding exists.
+- `--fail-on-severity any|error`: severity that triggers `--fail-on-findings`.
+- `--github-summary`: append the Markdown check report to GitHub Actions.
 
 ## `validate`
 

@@ -3,10 +3,11 @@
 ## 0.1.0
 
 - Initial release of `lfguard`.
-- Adds the `lfguard` CLI with `init`, `schema`, `validate`, `lint`, `audit`,
-  `plan`, `sample`, `bootstrap`, `doctor`, `permissions`, `completion`,
-  `snapshot`, and conservative `apply` commands.
+- Adds the `lfguard` CLI with `init`, `schema`, `check`, `validate`, `lint`,
+  `audit`, `plan`, `sample`, `bootstrap`, `doctor`, `permissions`,
+  `completion`, `snapshot`, and conservative `apply` commands.
 - Adds desired-policy lint checks for undefined LF-Tag keys and values.
+- Adds a `check` command for one-step offline validation and lint gates.
 - Adds policy summary reports for compact review of desired and current state.
 - Adds text, JSON, and Markdown output for reviewable audit and plan workflows.
 - Adds SARIF output for audit and lint findings.

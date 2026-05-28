@@ -936,6 +936,72 @@ class AuditCliTests(unittest.TestCase):
             self.assertIn("__fish_seen_subcommand_from permissions", script)
             self.assertIn("-l include-glue-read", script)
 
+    def test_cli_check_outputs_json_validation_and_lint_report(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            desired_path = tmp_path / "desired.json"
+            current_path = tmp_path / "current.json"
+            desired_path.write_text(
+                json.dumps({"lf_tags": {"sensitivity": ["internal"]}, "resource_tags": [], "grants": []}),
+                encoding="utf-8",
+            )
+            current_path.write_text(json.dumps({"lf_tags": {}, "resource_tags": [], "grants": []}), encoding="utf-8")
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                exit_code = main(
+                    [
+                        "check",
+                        "--desired",
+                        str(desired_path),
+                        "--current-snapshot",
+                        str(current_path),
+                        "--output",
+                        "json",
+                    ]
+                )
+
+            payload = json.loads(stdout.getvalue())
+            self.assertEqual(exit_code, 0)
+            self.assertTrue(payload["valid"])
+            self.assertEqual(payload["desired"]["lf_tags"], 1)
+            self.assertEqual(payload["current_snapshot"]["lf_tags"], 0)
+            self.assertEqual(payload["lint"]["summary"], {"total": 0, "errors": 0, "warnings": 0})
+
+    def test_cli_check_can_fail_on_lint_findings_after_writing_reports(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            desired_path = tmp_path / "desired.json"
+            output_path = tmp_path / "artifacts" / "lfguard-check.md"
+            summary_path = tmp_path / "summary.md"
+            desired_path.write_text(json.dumps({"lf_tags": {}, "resource_tags": [], "grants": []}), encoding="utf-8")
+
+            stdout = io.StringIO()
+            with patch.dict(os.environ, {"GITHUB_STEP_SUMMARY": str(summary_path)}):
+                with contextlib.redirect_stdout(stdout):
+                    exit_code = main(
+                        [
+                            "check",
+                            "--desired",
+                            str(desired_path),
+                            "--output",
+                            "markdown",
+                            "--output-file",
+                            str(output_path),
+                            "--github-summary",
+                            "--fail-on-findings",
+                        ]
+                    )
+
+            report = output_path.read_text(encoding="utf-8")
+            summary = summary_path.read_text(encoding="utf-8")
+            self.assertEqual(exit_code, 1)
+            self.assertEqual(stdout.getvalue(), "")
+            self.assertIn("### lfguard check", report)
+            self.assertIn("DESIRED_STATE_EMPTY", report)
+            self.assertIn("### lfguard check", summary)
+            self.assertIn("DESIRED_STATE_EMPTY", summary)
+
     def test_cli_validate_outputs_json_summary(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)

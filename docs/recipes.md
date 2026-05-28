@@ -151,6 +151,21 @@ lfguard validate \
   --output-file artifacts/lfguard-validate.txt
 ```
 
+## Check Local Policy
+
+Use `check` when a workflow should validate files and lint desired policy in one
+offline gate:
+
+```bash
+lfguard check \
+  --desired policy/desired.json \
+  --current-snapshot snapshots/prod-current.json \
+  --output markdown \
+  --output-file artifacts/lfguard-check.md \
+  --fail-on-findings \
+  --github-summary
+```
+
 ## Lint Desired Policy
 
 Run this before snapshot, audit, plan, or apply when you want to catch
