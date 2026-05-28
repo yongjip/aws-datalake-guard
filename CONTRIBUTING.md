@@ -11,6 +11,16 @@ python -m pip install -e ".[dev,aws,yaml]"
 python -m unittest discover -s tests
 ```
 
+## Reporting Issues
+
+Use the GitHub bug report template for reproducible behavior and include
+sanitized desired/current state when possible. Run `lfguard doctor --output json`
+and remove any sensitive account, principal, catalog, or path details before
+posting output.
+
+Use the feature request template for new resource shapes, report formats,
+workflow integrations, or safety-model changes.
+
 ## Design Constraints
 
 - Keep audit and plan logic deterministic and AWS-free.

@@ -11,6 +11,8 @@ class DocumentationExampleTests(unittest.TestCase):
         root = Path(__file__).resolve().parents[1]
         docs_paths = [
             root / "README.md",
+            *sorted((root / ".github").glob("*.md")),
+            *sorted((root / ".github" / "ISSUE_TEMPLATE").glob("*.md")),
             *sorted((root / "docs").glob("*.md")),
             *sorted((root / "examples").glob("*.md")),
             root / "CHANGELOG.md",
