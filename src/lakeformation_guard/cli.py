@@ -38,6 +38,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             return _cmd_schema(args)
         if args.command == "doctor":
             return _cmd_doctor(args)
+        if args.command == "permissions":
+            return _cmd_permissions(args)
         if args.command == "plan":
             return _cmd_plan(args)
         if args.command == "audit":
@@ -126,6 +128,21 @@ def build_parser() -> argparse.ArgumentParser:
         default=[],
         help="Fail when the named optional extra is not installed. Repeat for multiple extras.",
     )
+
+    permissions_parser = subparsers.add_parser("permissions", help="Emit starter IAM policies for live lfguard workflows.")
+    permissions_parser.add_argument(
+        "--template",
+        choices=("read-only", "additive-apply", "destructive-apply"),
+        default="read-only",
+        help="IAM policy template to emit. Defaults to read-only.",
+    )
+    permissions_parser.add_argument(
+        "--include-glue-read",
+        action="store_true",
+        help="Include common Glue Data Catalog read permissions.",
+    )
+    _add_output_arg(permissions_parser, markdown=True)
+    _add_report_output_file_arg(permissions_parser)
 
     audit_parser = subparsers.add_parser("audit", help="Report drift between desired and current Lake Formation state.")
     _add_state_args(audit_parser)
@@ -339,6 +356,16 @@ def _cmd_doctor(args: argparse.Namespace) -> int:
     _emit_output(_render_doctor(report, args.output), args.output_file, label="doctor report")
     if report["missing_required_extras"]:
         return 1
+    return 0
+
+
+def _cmd_permissions(args: argparse.Namespace) -> int:
+    policy = _iam_policy_template(args.template, include_glue_read=args.include_glue_read)
+    _emit_output(
+        _render_iam_policy(policy, args.output, template=args.template),
+        args.output_file,
+        label="permissions policy",
+    )
     return 0
 
 
@@ -615,6 +642,83 @@ def _render_doctor(report: dict, output: str) -> str:
             lines.append("- {}: {}".format(extra, state))
     lines.append("No AWS calls were made.")
     return "\n".join(lines) + "\n"
+
+
+def _iam_policy_template(template: str, *, include_glue_read: bool = False) -> dict:
+    statements = []
+    if template in {"read-only", "additive-apply", "destructive-apply"}:
+        statements.append(
+            _iam_statement(
+                "ReadLakeFormationState",
+                (
+                    "lakeformation:GetLFTag",
+                    "lakeformation:GetResourceLFTags",
+                    "lakeformation:ListPermissions",
+                ),
+            )
+        )
+    if template in {"additive-apply", "destructive-apply"}:
+        statements.append(
+            _iam_statement(
+                "ApplyAdditiveLakeFormationChanges",
+                (
+                    "lakeformation:CreateLFTag",
+                    "lakeformation:UpdateLFTag",
+                    "lakeformation:AddLFTagsToResource",
+                    "lakeformation:GrantPermissions",
+                ),
+            )
+        )
+    if template == "destructive-apply":
+        statements.append(
+            _iam_statement(
+                "ApplyDestructiveLakeFormationChanges",
+                (
+                    "lakeformation:RemoveLFTagsFromResource",
+                    "lakeformation:RevokePermissions",
+                ),
+            )
+        )
+    if include_glue_read:
+        statements.append(
+            _iam_statement(
+                "ReadGlueCatalogMetadata",
+                (
+                    "glue:GetDatabase",
+                    "glue:GetDatabases",
+                    "glue:GetTable",
+                    "glue:GetTables",
+                ),
+            )
+        )
+    return {"Version": "2012-10-17", "Statement": statements}
+
+
+def _iam_statement(sid: str, actions: Iterable[str]) -> dict:
+    return {
+        "Sid": sid,
+        "Effect": "Allow",
+        "Action": list(actions),
+        "Resource": "*",
+    }
+
+
+def _render_iam_policy(policy: dict, output: str, *, template: str) -> str:
+    policy_json = dumps_json(policy)
+    if output == "markdown":
+        return "\n".join(
+            [
+                "### lfguard permissions: {}".format(template),
+                "",
+                "Review and scope this starter IAM policy before using it in production.",
+                "",
+                "```json",
+                policy_json.rstrip(),
+                "```",
+                "",
+            ]
+        )
+    return policy_json
 
 
 def _render_validation(desired_summary: dict, current_summary: Optional[dict], output: str) -> str:

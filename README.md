@@ -216,6 +216,13 @@ Save the install check for CI diagnostics:
 lfguard doctor --output json --output-file artifacts/lfguard-doctor.json
 ```
 
+Generate starter IAM policy JSON for live AWS workflows:
+
+```bash
+lfguard permissions --template read-only --include-glue-read
+lfguard permissions --template additive-apply --output-file iam/lfguard-additive-apply.json
+```
+
 Export the JSON Schema for editor or CI validation:
 
 ```bash

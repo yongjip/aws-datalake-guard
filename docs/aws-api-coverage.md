@@ -1,8 +1,9 @@
 # AWS API Coverage
 
 `lfguard` uses AWS APIs only when live inventory or execution is requested. The
-offline commands `sample`, `init`, `schema`, `doctor`, `validate`, `audit`, and
-`plan` do not call AWS when `--current-snapshot` is provided.
+offline commands `sample`, `bootstrap`, `init`, `schema`, `doctor`,
+`permissions`, `validate`, `audit`, and `plan` do not call AWS when
+`--current-snapshot` is provided.
 
 The live adapter is intentionally small and uses only the Lake Formation client
 from `boto3`.

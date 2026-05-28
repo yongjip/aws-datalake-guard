@@ -13,9 +13,9 @@ bespoke boto3 scripts.
 
 ## Is it safe to run against production?
 
-The audit, validate, lint, plan, sample, schema, and doctor commands do not
-mutate AWS state. `lfguard apply` is also a dry run unless `--execute` is
-provided.
+The audit, validate, lint, plan, sample, bootstrap, schema, permissions, and
+doctor commands do not mutate AWS state. `lfguard apply` is also a dry run
+unless `--execute` is provided.
 
 By default, plans are additive only. Permission revokes, resource tag removals,
 and LF-Tag value removals require explicit allow flags, so destructive changes

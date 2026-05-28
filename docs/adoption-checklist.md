@@ -121,6 +121,10 @@ Execute only after reviewing the plan and confirming the IAM/Lake Formation
 permissions are intentionally scoped:
 
 ```bash
+lfguard permissions --template additive-apply --output-file iam/lfguard-additive-apply.json
+```
+
+```bash
 lfguard apply \
   --desired policy/desired.json \
   --profile sandbox \

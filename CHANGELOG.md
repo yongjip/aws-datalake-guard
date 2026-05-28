@@ -13,6 +13,8 @@
 - Adds an offline install check for optional AWS and YAML integrations.
 - Adds `doctor --require` checks for failing CI when required optional extras
   are missing.
+- Adds a `permissions` command for generating starter IAM policies for
+  read-only, additive apply, and destructive apply workflows.
 - Adds a `--github-summary` option for GitHub Actions job summaries across
   lint, summary, audit, plan, and apply workflows.
 - Adds a copyable GitHub Code Scanning workflow for lint and audit SARIF

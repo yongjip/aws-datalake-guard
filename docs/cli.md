@@ -17,6 +17,7 @@ Use `lfguard --help` or `lfguard <command> --help` for argparse-generated help.
 | `sample` | Generate offline demo desired/current state files. | No |
 | `schema` | Emit the JSON Schema for desired/current state files. | No |
 | `doctor` | Check the local install and optional extras. | No |
+| `permissions` | Emit starter IAM policies for live AWS workflows. | No |
 | `validate` | Parse and validate local desired/current state files. | No |
 | `lint` | Check desired policy semantics, such as undefined LF-Tag references. | No |
 | `summary` | Summarize desired and optional current state for review. | No |
@@ -36,11 +37,12 @@ State-aware commands use these options:
 - `--region NAME`: AWS region for live operations.
 - `--catalog-id ID`: Glue Data Catalog ID.
 - `--output text|json|markdown|sarif`: output format where supported. `audit`
-  and `lint` support SARIF; `audit`, `plan`, and `apply` support Markdown.
+  and `lint` support SARIF; `permissions`, `lint`, `summary`, `audit`, `plan`,
+  and `apply` support Markdown.
 - `--output-file PATH`: write the command report to a file instead of stdout
-  where supported. `doctor`, `validate`, `lint`, `summary`, `audit`, `plan`,
-  and `apply` support this for reports; `init`, `schema`, and `snapshot` use it
-  for generated files.
+  where supported. `doctor`, `permissions`, `validate`, `lint`, `summary`,
+  `audit`, `plan`, and `apply` support this for reports; `init`, `schema`, and
+  `snapshot` use it for generated files.
 - `--github-summary`: append a Markdown report to `$GITHUB_STEP_SUMMARY` where
   supported.
 
@@ -165,6 +167,27 @@ lfguard doctor --output json --output-file artifacts/lfguard-doctor.json
 
 Use `--require aws` or `--require yaml` to return exit code `1` when a needed
 optional extra is missing. Repeat `--require` to check multiple extras.
+
+## `permissions`
+
+Generate starter IAM policies for live `snapshot`, `audit`, `plan`, and
+`apply` workflows:
+
+```bash
+lfguard permissions --template read-only --output-file iam/lfguard-read-only.json
+lfguard permissions --template additive-apply --include-glue-read
+lfguard permissions --template destructive-apply --output markdown
+```
+
+Useful options:
+
+- `--template read-only|additive-apply|destructive-apply`: choose the IAM
+  policy template. `additive-apply` omits revoke and tag-removal actions;
+  `destructive-apply` includes them for separately reviewed workflows.
+- `--include-glue-read`: add common Glue Data Catalog read actions.
+- `--output text|json|markdown`: choose raw JSON or a Markdown report. Text and
+  JSON both emit copyable IAM policy JSON.
+- `--output-file PATH`: write the policy to a file instead of stdout.
 
 ## `validate`
 

@@ -42,6 +42,25 @@ lfguard bootstrap --output-dir lfguard-policy --format yaml
 The generated workflow is offline: it validates, lints, summarizes, and uploads
 report artifacts for the desired policy without calling AWS.
 
+## Generate IAM Policy Starters
+
+Generate IAM policy JSON before wiring live AWS snapshot or apply jobs:
+
+```bash
+lfguard permissions --template read-only --include-glue-read \
+  --output-file iam/lfguard-read-only.json
+
+lfguard permissions --template additive-apply \
+  --output-file iam/lfguard-additive-apply.json
+```
+
+Keep destructive permissions separate from routine automation:
+
+```bash
+lfguard permissions --template destructive-apply \
+  --output-file iam/lfguard-destructive-apply.json
+```
+
 Generate a starter desired-state policy, then replace the example principal,
 database, table, and tag values with your environment's names.
 

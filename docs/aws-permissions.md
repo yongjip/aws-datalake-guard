@@ -8,6 +8,19 @@ Exact permissions vary by resource type and by your Lake Formation
 administration model. Start with a read-only role for audit and plan workflows,
 then use a separate apply role for execution.
 
+Generate starter IAM policy JSON with:
+
+```bash
+lfguard permissions --template read-only --include-glue-read \
+  --output-file iam/lfguard-read-only.json
+
+lfguard permissions --template additive-apply \
+  --output-file iam/lfguard-additive-apply.json
+
+lfguard permissions --template destructive-apply \
+  --output-file iam/lfguard-destructive-apply.json
+```
+
 ## Read-Only Inventory Role
 
 Use this for `lfguard snapshot`, or for `lfguard audit` and `lfguard plan` when
@@ -46,9 +59,15 @@ catalog discovery handled outside `lfguard`, such as:
 }
 ```
 
-## Apply Role
+## Additive Apply Role
 
-Use this only for reviewed apply workflows.
+Use this for reviewed apply workflows that only create LF-Tags, add LF-Tag
+values, add resource tags, or grant permissions.
+
+The `lfguard permissions` apply templates include the read-only inventory
+statement too, so live `plan` and `apply` can load current state when
+`--current-snapshot` is omitted. The snippets below show the write statements
+that separate additive and destructive workflows.
 
 ```json
 {
@@ -60,8 +79,27 @@ Use this only for reviewed apply workflows.
         "lakeformation:CreateLFTag",
         "lakeformation:UpdateLFTag",
         "lakeformation:AddLFTagsToResource",
+        "lakeformation:GrantPermissions"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+```
+
+## Destructive Apply Role
+
+Use this only for separately reviewed workflows that intentionally remove LF-Tag
+assignments or revoke Lake Formation permissions.
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
         "lakeformation:RemoveLFTagsFromResource",
-        "lakeformation:GrantPermissions",
         "lakeformation:RevokePermissions"
       ],
       "Resource": "*"

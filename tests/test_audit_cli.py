@@ -847,6 +847,57 @@ class AuditCliTests(unittest.TestCase):
         self.assertEqual(payload["missing_required_extras"], ["yaml"])
         self.assertFalse(payload["optional_dependencies"]["PyYAML"]["installed"])
 
+    def test_cli_permissions_outputs_read_only_policy_by_default(self):
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            exit_code = main(["permissions"])
+
+        payload = json.loads(stdout.getvalue())
+        actions = _policy_actions(payload)
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(payload["Version"], "2012-10-17")
+        self.assertIn("lakeformation:GetLFTag", actions)
+        self.assertIn("lakeformation:GetResourceLFTags", actions)
+        self.assertIn("lakeformation:ListPermissions", actions)
+        self.assertNotIn("lakeformation:GrantPermissions", actions)
+
+    def test_cli_permissions_can_include_glue_read_and_write_markdown(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output_path = Path(tmp) / "artifacts" / "permissions.md"
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                exit_code = main(
+                    [
+                        "permissions",
+                        "--template",
+                        "additive-apply",
+                        "--include-glue-read",
+                        "--output",
+                        "markdown",
+                        "--output-file",
+                        str(output_path),
+                    ]
+                )
+
+            text = output_path.read_text(encoding="utf-8")
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stdout.getvalue(), "")
+            self.assertIn("### lfguard permissions: additive-apply", text)
+            self.assertIn("lakeformation:GrantPermissions", text)
+            self.assertIn("glue:GetTable", text)
+            self.assertNotIn("lakeformation:RevokePermissions", text)
+
+    def test_cli_permissions_destructive_apply_policy_includes_revoke_actions(self):
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            exit_code = main(["permissions", "--template", "destructive-apply", "--output", "json"])
+
+        actions = _policy_actions(json.loads(stdout.getvalue()))
+        self.assertEqual(exit_code, 0)
+        self.assertIn("lakeformation:RemoveLFTagsFromResource", actions)
+        self.assertIn("lakeformation:RevokePermissions", actions)
+
     def test_cli_validate_outputs_json_summary(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
@@ -1326,6 +1377,14 @@ class AuditCliTests(unittest.TestCase):
             payload = json.loads(output_path.read_text(encoding="utf-8"))
             self.assertEqual(payload["plan"]["summary"], {"total": 1, "safe": 1, "destructive": 0})
             self.assertEqual(payload["results"], [apply_result.to_dict()])
+
+
+def _policy_actions(policy):
+    return {
+        action
+        for statement in policy["Statement"]
+        for action in statement["Action"]
+    }
 
 
 if __name__ == "__main__":
