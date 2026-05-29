@@ -1,0 +1,446 @@
+import json
+import tempfile
+import unittest
+from pathlib import Path
+
+import lakeformation_guard
+from lakeformation_guard.lint import lint_desired
+from lakeformation_guard.models import DesiredState
+from lakeformation_guard.policy import (
+    LakePolicy,
+    PermissionTemplate,
+    TagAssignmentScope,
+    database_creator,
+    editor,
+    load_policy,
+    reader,
+    table_creator,
+)
+
+
+class PolicyAuthoringTests(unittest.TestCase):
+    def test_tag_key_accepts_descriptive_scope_enums_and_strings(self):
+        policy = LakePolicy()
+
+        tag_key = policy.tag_key(
+            "domain",
+            values=["sales", "finance"],
+            assignable_to=[TagAssignmentScope.DATABASE, "table"],
+        )
+
+        self.assertEqual(
+            tag_key.assignable_to,
+            (TagAssignmentScope.DATABASE, TagAssignmentScope.TABLE),
+        )
+        self.assertFalse(tag_key.can_narrow_columns)
+
+    def test_tag_key_accepts_single_enum_and_single_string_values(self):
+        policy = LakePolicy()
+
+        tag_key = policy.tag_key(
+            "domain",
+            values="sales",
+            assignable_to=TagAssignmentScope.TABLE,
+        )
+
+        self.assertEqual(tag_key.values, ("sales",))
+        self.assertEqual(tag_key.assignable_to, (TagAssignmentScope.TABLE,))
+
+    def test_reader_group_can_use_column_narrowing_tag(self):
+        policy = LakePolicy()
+        _define_common_tags(policy)
+        policy.group("dataconsumer", reader().where(domain="sales", contains_pii="false"))
+        policy.bind_role("arn:aws:iam::111122223333:role/DataConsumer", "dataconsumer")
+
+        policy.validate()
+
+    def test_reader_group_can_use_database_assignable_column_narrowing_tag_alone(self):
+        policy = LakePolicy()
+        policy.tag_key(
+            "contains_pii",
+            values=["false", "true"],
+            assignable_to=[
+                TagAssignmentScope.DATABASE,
+                TagAssignmentScope.TABLE,
+                TagAssignmentScope.COLUMN,
+            ],
+        )
+        policy.group("dataconsumer", reader().where(contains_pii="false"))
+        policy.bind_role("arn:aws:iam::111122223333:role/DataConsumer", "dataconsumer")
+
+        desired = policy.to_desired_state()
+
+        self.assertEqual(
+            desired.grants[0].resource.to_dict()["expression"],
+            {"contains_pii": ["false"]},
+        )
+        self.assertEqual(
+            desired.grants[1].resource.to_dict()["expression"],
+            {"contains_pii": ["false"]},
+        )
+
+    def test_group_filters_accept_mapping_for_non_identifier_tag_keys(self):
+        policy = LakePolicy()
+        policy.tag_key(
+            "data-domain",
+            values=["sales"],
+            assignable_to=[TagAssignmentScope.DATABASE, TagAssignmentScope.TABLE],
+        )
+        policy.group("dataconsumer", reader().where({"data-domain": "sales"}))
+        policy.bind_role("arn:aws:iam::111122223333:role/DataConsumer", "dataconsumer")
+
+        desired = policy.to_desired_state()
+
+        self.assertEqual(
+            desired.grants[0].resource.to_dict()["expression"],
+            {"data-domain": ["sales"]},
+        )
+
+    def test_where_tags_is_a_descriptive_mapping_alias(self):
+        policy = LakePolicy()
+        policy.tag_key(
+            "data-domain",
+            values=["sales"],
+            assignable_to=[TagAssignmentScope.DATABASE, TagAssignmentScope.TABLE],
+        )
+        policy.group("dataconsumer", reader().where_tags({"data-domain": "sales"}))
+        policy.bind_role("arn:aws:iam::111122223333:role/DataConsumer", "dataconsumer")
+
+        policy.validate()
+
+    def test_editor_group_cannot_use_column_narrowing_tag(self):
+        policy = LakePolicy()
+        _define_common_tags(policy)
+        policy.group("operations", editor().where(domain="sales", contains_pii="false"))
+
+        with self.assertRaisesRegex(ValueError, "can be assigned to columns"):
+            policy.validate()
+
+    def test_table_creator_group_cannot_use_column_narrowing_tag(self):
+        policy = LakePolicy()
+        _define_common_tags(policy)
+        policy.group(
+            "dataengineer",
+            table_creator().where(domain="sales", contains_pii="false"),
+        )
+
+        with self.assertRaisesRegex(ValueError, "can be assigned to columns"):
+            policy.validate()
+
+    def test_database_creator_cannot_use_tag_filters(self):
+        policy = LakePolicy()
+        policy.tag_key("domain", values=["sales"], assignable_to=[TagAssignmentScope.DATABASE])
+        policy.group("catalog_admin", database_creator().where(domain="sales"))
+
+        with self.assertRaisesRegex(ValueError, "cannot use LF-Tag filters"):
+            policy.validate()
+
+    def test_group_rejects_template_function_without_call(self):
+        policy = LakePolicy()
+
+        with self.assertRaisesRegex(ValueError, "must be created by reader"):
+            policy.group("dataconsumer", reader)  # type: ignore[arg-type]
+
+    def test_validate_rejects_undefined_group_in_binding(self):
+        policy = LakePolicy()
+        policy.bind_role("arn:aws:iam::111122223333:role/Analyst", "missing_group")
+
+        with self.assertRaisesRegex(ValueError, "undefined permission group"):
+            policy.validate()
+
+    def test_validate_rejects_undefined_tag_value(self):
+        policy = LakePolicy()
+        policy.tag_key("domain", values=["sales"], assignable_to=[TagAssignmentScope.DATABASE])
+        policy.group("dataconsumer", reader().where(domain="finance"))
+
+        with self.assertRaisesRegex(ValueError, "undefined values"):
+            policy.validate()
+
+    def test_to_desired_state_generates_reader_grants(self):
+        policy = LakePolicy()
+        _define_common_tags(policy)
+        policy.group("dataconsumer", reader().where(domain="sales", contains_pii="false"))
+        policy.bind_role("arn:aws:iam::111122223333:role/DataConsumer", "dataconsumer")
+
+        desired = policy.to_desired_state()
+
+        self.assertEqual(
+            desired.lf_tag_key_metadata[0].to_dict(),
+            {"key": "contains_pii", "assignable_to": ["database", "table", "column"]},
+        )
+        self.assertEqual(len(desired.grants), 2)
+        self.assertEqual(desired.grants[0].resource.resource_type, "DATABASE")
+        self.assertEqual(
+            desired.grants[0].resource.to_dict()["expression"],
+            {"contains_pii": ["false"], "domain": ["sales"]},
+        )
+        self.assertEqual(desired.grants[0].permissions, ("DESCRIBE",))
+        self.assertEqual(desired.grants[1].resource.resource_type, "TABLE")
+        self.assertEqual(
+            desired.grants[1].resource.to_dict()["expression"],
+            {"contains_pii": ["false"], "domain": ["sales"]},
+        )
+        self.assertEqual(desired.grants[1].permissions, ("DESCRIBE", "SELECT"))
+
+    def test_to_desired_state_generates_resource_tag_assignments(self):
+        policy = LakePolicy()
+        _define_common_tags(policy)
+        policy.tag_database("sales_curated", domain="sales", contains_pii="false")
+        policy.tag_table("sales_curated", "customers", contains_pii="false")
+        policy.tag_columns("sales_curated", "customers", ["phone_number"], contains_pii="true")
+
+        desired = policy.to_desired_state()
+
+        self.assertEqual(
+            [assignment.to_dict() for assignment in desired.resource_tags],
+            [
+                {
+                    "resource": {"kind": "database", "database": "sales_curated"},
+                    "tags": {"contains_pii": ["false"], "domain": ["sales"]},
+                },
+                {
+                    "resource": {
+                        "kind": "table",
+                        "database": "sales_curated",
+                        "table": "customers",
+                    },
+                    "tags": {"contains_pii": ["false"]},
+                },
+                {
+                    "resource": {
+                        "kind": "table_with_columns",
+                        "database": "sales_curated",
+                        "table": "customers",
+                        "columns": ["phone_number"],
+                    },
+                    "tags": {"contains_pii": ["true"]},
+                },
+            ],
+        )
+
+    def test_resource_tag_assignments_accept_mapping_for_non_identifier_tag_keys(self):
+        policy = LakePolicy()
+        policy.tag_key(
+            "data-domain",
+            values=["sales"],
+            assignable_to=[TagAssignmentScope.DATABASE, TagAssignmentScope.TABLE],
+        )
+        policy.tag_database("sales_curated", tags={"data-domain": "sales"})
+
+        desired = policy.to_desired_state()
+
+        self.assertEqual(
+            desired.resource_tags[0].to_dict(),
+            {
+                "resource": {"kind": "database", "database": "sales_curated"},
+                "tags": {"data-domain": ["sales"]},
+            },
+        )
+
+    def test_resource_tag_assignment_rejects_mapping_keyword_conflict(self):
+        policy = LakePolicy()
+
+        with self.assertRaisesRegex(ValueError, "conflicting values"):
+            policy.tag_database("sales_curated", tags={"domain": "sales"}, domain="finance")
+
+    def test_resource_tag_assignment_scope_is_enforced(self):
+        policy = LakePolicy()
+        _define_common_tags(policy)
+        policy.tag_columns("sales_curated", "customers", "phone_number", domain="sales")
+
+        with self.assertRaisesRegex(ValueError, "assignable only to database, table"):
+            policy.validate()
+
+    def test_resource_tag_assignment_rejects_undefined_value(self):
+        policy = LakePolicy()
+        _define_common_tags(policy)
+        policy.tag_table("sales_curated", "customers", contains_pii="unknown")
+
+        with self.assertRaisesRegex(ValueError, "assigns undefined value"):
+            policy.validate()
+
+    def test_resource_tag_assignment_rejects_conflicting_values(self):
+        policy = LakePolicy()
+        _define_common_tags(policy)
+        policy.tag_table("sales_curated", "customers", domain="sales")
+
+        with self.assertRaisesRegex(ValueError, "already has LF-Tag"):
+            policy.tag_table("sales_curated", "customers", domain="finance")
+
+    def test_to_desired_state_generates_table_creator_grants_that_lint_without_errors(self):
+        policy = LakePolicy()
+        policy.tag_key(
+            "domain",
+            values=["sales", "finance"],
+            assignable_to=[TagAssignmentScope.DATABASE, TagAssignmentScope.TABLE],
+        )
+        policy.group("dataengineer", table_creator().where(domain="sales"))
+        policy.bind_role("arn:aws:iam::111122223333:role/DataEngineer", "dataengineer")
+
+        desired = policy.to_desired_state()
+        findings = lint_desired(desired)
+        finding_codes = {finding.code for finding in findings}
+
+        self.assertEqual([grant.permissions for grant in desired.grants], [
+            ("CREATE_TABLE", "DESCRIBE"),
+            ("DELETE", "DESCRIBE", "INSERT", "SELECT"),
+        ])
+        self.assertNotIn("MUTATING_PERMISSION_REVIEW", finding_codes)
+        self.assertNotIn("LF_TAG_POLICY_TABLE_SELECT_MUTATION_CONFLICT", finding_codes)
+        self.assertNotIn("LF_TAG_POLICY_COMBINED_TABLE_SELECT_MUTATION_CONFLICT", finding_codes)
+
+    def test_to_desired_state_generates_database_creator_catalog_grant(self):
+        policy = LakePolicy()
+        policy.group("catalog_admin", database_creator())
+        policy.bind_role(
+            "arn:aws:iam::111122223333:role/CatalogAdmin",
+            "catalog_admin",
+        )
+
+        desired = policy.to_desired_state()
+
+        self.assertEqual(len(desired.grants), 1)
+        self.assertEqual(desired.grants[0].resource.kind, "catalog")
+        self.assertEqual(desired.grants[0].permissions, ("CREATE_DATABASE",))
+
+    def test_write_desired_writes_json(self):
+        policy = LakePolicy()
+        policy.tag_key("domain", values=["sales"], assignable_to=[TagAssignmentScope.DATABASE])
+        policy.group("dataconsumer", reader().where(domain="sales"))
+        policy.bind_role("arn:aws:iam::111122223333:role/DataConsumer", "dataconsumer")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            output_path = Path(tmp) / "desired.json"
+            policy.write_desired(output_path)
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(payload["lf_tags"], {"domain": ["sales"]})
+        self.assertEqual(payload["lf_tag_key_metadata"]["domain"]["assignable_to"], ["database"])
+
+    def test_load_policy_loads_object_from_python_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            policy_path = Path(tmp) / "policy.py"
+            policy_path.write_text(
+                """from lakeformation_guard.policy import LakePolicy, TagAssignmentScope, reader
+
+policy = LakePolicy()
+policy.tag_key("domain", values=["sales"], assignable_to=[TagAssignmentScope.DATABASE])
+policy.group("dataconsumer", reader().where(domain="sales"))
+policy.bind_role("arn:aws:iam::111122223333:role/DataConsumer", "dataconsumer")
+""",
+                encoding="utf-8",
+            )
+
+            policy = load_policy(policy_path)
+
+        self.assertEqual(policy.groups[0].name, "dataconsumer")
+
+    def test_templates_are_named_for_user_defined_groups(self):
+        self.assertEqual(reader().permission_template, PermissionTemplate.READER)
+        self.assertEqual(editor().permission_template, PermissionTemplate.EDITOR)
+        self.assertEqual(
+            table_creator().permission_template,
+            PermissionTemplate.TABLE_CREATOR,
+        )
+        self.assertEqual(
+            database_creator().permission_template,
+            PermissionTemplate.DATABASE_CREATOR,
+        )
+
+    def test_ambiguous_creator_template_is_not_public_api(self):
+        self.assertFalse(hasattr(lakeformation_guard, "creator"))
+        self.assertNotIn("creator", lakeformation_guard.__all__)
+        self.assertEqual(
+            PermissionTemplate("table_creator"),
+            PermissionTemplate.TABLE_CREATOR,
+        )
+        with self.assertRaises(ValueError):
+            PermissionTemplate("creator")
+
+    def test_metadata_keeps_raw_lint_conservative_without_metadata(self):
+        desired = DesiredState.from_dict(
+            {
+                "lf_tags": {"domain": ["sales"]},
+                "grants": [
+                    {
+                        "principal": "arn:aws:iam::111122223333:role/DataEngineer",
+                        "resource": {
+                            "kind": "lf_tag_policy",
+                            "resource_type": "TABLE",
+                            "expression": {"domain": ["sales"]},
+                        },
+                        "permissions": ["SELECT", "INSERT"],
+                    }
+                ],
+            }
+        )
+
+        self.assertIn(
+            "LF_TAG_POLICY_TABLE_SELECT_MUTATION_CONFLICT",
+            {finding.code for finding in lint_desired(desired)},
+        )
+
+    def test_lint_rejects_resource_tag_outside_declared_assignment_scope(self):
+        desired = DesiredState.from_dict(
+            {
+                "lf_tags": {"domain": ["sales"]},
+                "lf_tag_key_metadata": {
+                    "domain": {"assignable_to": ["database", "table"]}
+                },
+                "resource_tags": [
+                    {
+                        "resource": {
+                            "kind": "table_with_columns",
+                            "database": "sales_curated",
+                            "table": "customers",
+                            "columns": ["phone_number"],
+                        },
+                        "tags": {"domain": ["sales"]},
+                    }
+                ],
+            }
+        )
+
+        self.assertIn(
+            "RESOURCE_TAG_SCOPE_UNSUPPORTED",
+            {finding.code for finding in lint_desired(desired)},
+        )
+
+    def test_lint_rejects_resource_tags_on_unsupported_resource_kind(self):
+        desired = DesiredState.from_dict(
+            {
+                "lf_tags": {"domain": ["sales"]},
+                "resource_tags": [
+                    {
+                        "resource": {"kind": "data_location", "location": "s3://lake/sales/"},
+                        "tags": {"domain": ["sales"]},
+                    }
+                ],
+            }
+        )
+
+        self.assertIn(
+            "RESOURCE_TAG_KIND_UNSUPPORTED",
+            {finding.code for finding in lint_desired(desired)},
+        )
+
+
+def _define_common_tags(policy: LakePolicy) -> None:
+    policy.tag_key(
+        "domain",
+        values=["sales", "finance"],
+        assignable_to=[TagAssignmentScope.DATABASE, TagAssignmentScope.TABLE],
+    )
+    policy.tag_key(
+        "contains_pii",
+        values=["false", "true"],
+        assignable_to=[
+            TagAssignmentScope.DATABASE,
+            TagAssignmentScope.TABLE,
+            TagAssignmentScope.COLUMN,
+        ],
+    )
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -81,17 +81,20 @@ lfguard permissions --template destructive-apply \
   --output-file iam/lfguard-destructive-apply.json
 ```
 
-Generate a starter desired-state policy, then replace the example principal,
-database, table, and tag values with your environment's names.
+For day-to-day policy repositories, edit the generated `policy.py`, then
+regenerate and check desired state:
+
+```bash
+cd lfguard-policy
+lfguard generate policy.py --output-file policy/desired.json --force
+lfguard check --desired policy/desired.json --fail-on-findings
+```
+
+Use `init` only when you intentionally want to hand-author raw desired-state
+JSON or YAML instead of using the Python policy builder:
 
 ```bash
 lfguard init --output-file policy/desired.json
-```
-
-Use `.yaml` or `.yml` when your policy repository stores desired state as YAML:
-
-```bash
-lfguard init --output-file policy/desired.yaml
 ```
 
 ## Try a Local Demo
@@ -273,7 +276,7 @@ comparison.
 
 ```bash
 lfguard snapshot \
-  --desired policy/desired.yaml \
+  --desired policy/desired.json \
   --profile prod \
   --region ap-northeast-2 \
   --output-file snapshots/prod-current.json
@@ -321,7 +324,7 @@ Run a dry run against live AWS first:
 
 ```bash
 lfguard apply \
-  --desired policy/desired.yaml \
+  --desired policy/desired.json \
   --profile prod \
   --region ap-northeast-2
 ```
@@ -330,7 +333,7 @@ Save the dry-run as a review artifact:
 
 ```bash
 lfguard apply \
-  --desired policy/desired.yaml \
+  --desired policy/desired.json \
   --profile prod \
   --region ap-northeast-2 \
   --output markdown \
@@ -341,7 +344,7 @@ Execute only after reviewing the plan:
 
 ```bash
 lfguard apply \
-  --desired policy/desired.yaml \
+  --desired policy/desired.json \
   --profile prod \
   --region ap-northeast-2 \
   --execute
@@ -351,7 +354,7 @@ For change records, write the executed plan and adapter responses as JSON:
 
 ```bash
 lfguard apply \
-  --desired policy/desired.yaml \
+  --desired policy/desired.json \
   --profile prod \
   --region ap-northeast-2 \
   --execute \

@@ -1,6 +1,7 @@
 # GitHub Actions
 
-This workflow runs `lfguard` against a checked-in desired policy and a generated
+This workflow checks that `policy.py` still matches the checked-in generated
+desired policy, then runs `lfguard` against that desired policy and a generated
 current-state snapshot. It is intended for platform repositories that already
 use GitHub OIDC to assume an AWS role.
 
@@ -50,10 +51,13 @@ jobs:
           aws-region: ap-northeast-2
 
       - name: Install lfguard
-        run: python -m pip install "lfguard[aws,yaml]"
+        run: python -m pip install "lfguard[aws]"
 
       - name: Check lfguard install
-        run: lfguard doctor --require aws --require yaml
+        run: lfguard doctor --require aws
+
+      - name: Check generated desired state
+        run: lfguard generate policy.py --output-file policy/desired.json --check
 
       - name: Export policy schema
         run: lfguard schema --output-file policy/lfguard.schema.json
@@ -61,7 +65,7 @@ jobs:
       - name: Summarize policy
         run: |
           lfguard summary \
-            --desired policy/desired.yaml \
+            --desired policy/desired.json \
             --output markdown \
             --output-file artifacts/lfguard-summary.md \
             --github-summary
@@ -69,19 +73,19 @@ jobs:
       - name: Capture current state
         run: |
           lfguard snapshot \
-            --desired policy/desired.yaml \
+            --desired policy/desired.json \
             --region ap-northeast-2 \
             --output-file snapshots/prod-current.json
 
       - name: Check policy files
         run: |
           lfguard lint \
-            --desired policy/desired.yaml \
+            --desired policy/desired.json \
             --output sarif \
             --output-file artifacts/lfguard-lint.sarif
 
           lfguard check \
-            --desired policy/desired.yaml \
+            --desired policy/desired.json \
             --current-snapshot snapshots/prod-current.json \
             --output markdown \
             --output-file artifacts/lfguard-check.md \
@@ -91,13 +95,13 @@ jobs:
       - name: Audit drift
         run: |
           lfguard audit \
-            --desired policy/desired.yaml \
+            --desired policy/desired.json \
             --current-snapshot snapshots/prod-current.json \
             --output sarif \
             --output-file artifacts/lfguard-audit.sarif
 
           lfguard audit \
-            --desired policy/desired.yaml \
+            --desired policy/desired.json \
             --current-snapshot snapshots/prod-current.json \
             --output markdown \
             --output-file artifacts/lfguard-audit.md \

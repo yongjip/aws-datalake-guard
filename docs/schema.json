@@ -141,6 +141,35 @@
       ],
       "type": "object"
     },
+    "lfTagKeyMetadata": {
+      "additionalProperties": false,
+      "properties": {
+        "assignable_to": {
+          "$ref": "#/$defs/tagAssignmentScopeList"
+        },
+        "key": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "assignable_to"
+      ],
+      "type": "object"
+    },
+    "lfTagKeyMetadataValue": {
+      "additionalProperties": false,
+      "properties": {
+        "assignable_to": {
+          "$ref": "#/$defs/tagAssignmentScopeList"
+        }
+      },
+      "required": [
+        "assignable_to"
+      ],
+      "type": "object"
+    },
     "lfTagPolicyResource": {
       "additionalProperties": false,
       "properties": {
@@ -308,6 +337,29 @@
         "columns"
       ],
       "type": "object"
+    },
+    "tagAssignmentScopeList": {
+      "oneOf": [
+        {
+          "enum": [
+            "database",
+            "table",
+            "column"
+          ]
+        },
+        {
+          "items": {
+            "enum": [
+              "database",
+              "table",
+              "column"
+            ]
+          },
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        }
+      ]
     }
   },
   "$id": "https://raw.githubusercontent.com/yongjip/aws-datalake-guard/main/docs/schema.json",
@@ -320,6 +372,23 @@
         "$ref": "#/$defs/grant"
       },
       "type": "array"
+    },
+    "lf_tag_key_metadata": {
+      "description": "Optional authoring metadata for LF-Tag assignment scope.",
+      "oneOf": [
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/lfTagKeyMetadataValue"
+          },
+          "type": "object"
+        },
+        {
+          "items": {
+            "$ref": "#/$defs/lfTagKeyMetadata"
+          },
+          "type": "array"
+        }
+      ]
     },
     "lf_tags": {
       "description": "LF-Tag keys and allowed values.",

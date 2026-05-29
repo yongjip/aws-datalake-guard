@@ -71,7 +71,11 @@ jobs:
           python -m venv /tmp/lfguard-wheel-smoke
           /tmp/lfguard-wheel-smoke/bin/python -m pip install --no-index --find-links dist lfguard
           /tmp/lfguard-wheel-smoke/bin/lfguard --version
-          /tmp/lfguard-wheel-smoke/bin/aws-lakeformation-guard --version
+          /tmp/lfguard-wheel-smoke/bin/lfguard generate examples/policy.py --output-file /tmp/lfguard-policy.json --force
+          /tmp/lfguard-wheel-smoke/bin/lfguard generate examples/policy.py --output-file /tmp/lfguard-policy.json --check
+          /tmp/lfguard-wheel-smoke/bin/lfguard check --desired /tmp/lfguard-policy.json --fail-on-findings
+          /tmp/lfguard-wheel-smoke/bin/lfguard bootstrap --output-dir /tmp/lfguard-policy-bootstrap
+          /tmp/lfguard-wheel-smoke/bin/lfguard generate /tmp/lfguard-policy-bootstrap/policy.py --output-file /tmp/lfguard-policy-bootstrap/policy/desired.json --check
           /tmp/lfguard-wheel-smoke/bin/lfguard sample --output-dir /tmp/lfguard-demo
           /tmp/lfguard-wheel-smoke/bin/lfguard check \
             --desired /tmp/lfguard-demo/desired.json \
@@ -84,7 +88,7 @@ jobs:
           /tmp/lfguard-wheel-smoke/bin/lfguard plan \
             --desired /tmp/lfguard-demo/desired.json \
             --current-snapshot /tmp/lfguard-demo/current-snapshot.json
-          /tmp/lfguard-wheel-smoke/bin/python -c "from lakeformation_guard import DesiredState, CurrentState, audit, plan; print(DesiredState.__name__, CurrentState.__name__, callable(audit), callable(plan))"
+          /tmp/lfguard-wheel-smoke/bin/python -c "from lakeformation_guard import DesiredState, CurrentState, LakePolicy, audit, plan, table_creator; print(DesiredState.__name__, CurrentState.__name__, LakePolicy.__name__, callable(audit), callable(plan), callable(table_creator))"
       - uses: actions/upload-artifact@v4
         with:
           name: distributions
@@ -134,10 +138,12 @@ jobs:
           version="${RELEASE_TAG#v}"
           lfguard --version
           test "$(lfguard --version)" = "lfguard ${version}"
-          aws-lakeformation-guard --version
+          lfguard bootstrap --output-dir /tmp/lfguard-pypi-policy
+          lfguard generate /tmp/lfguard-pypi-policy/policy.py --output-file /tmp/lfguard-pypi-policy/policy/desired.json --check
+          lfguard check --desired /tmp/lfguard-pypi-policy/policy/desired.json --fail-on-findings
           lfguard sample --output-dir /tmp/lfguard-pypi-demo
           lfguard check \
             --desired /tmp/lfguard-pypi-demo/desired.json \
             --current-snapshot /tmp/lfguard-pypi-demo/current-snapshot.json \
             --fail-on-findings
-          python -c "from lakeformation_guard import DesiredState, plan; print(DesiredState.__name__, callable(plan))"
+          python -c "from lakeformation_guard import DesiredState, LakePolicy, plan, table_creator; print(DesiredState.__name__, LakePolicy.__name__, callable(plan), callable(table_creator))"

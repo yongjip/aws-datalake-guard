@@ -4,13 +4,21 @@ These files let you try `lfguard` without AWS credentials:
 
 - `desired.json`: a desired Lake Formation LF-Tag and grant policy.
 - `desired.yaml`: the same desired policy in YAML.
+- `policy.py`: a Python-native permission group policy that can generate
+  desired state.
 - `current-snapshot.json`: a deliberately incomplete current-state snapshot.
 - `github-actions/lakeformation-drift.yml`: a copyable GitHub Actions workflow
-  for scheduled or manually dispatched drift checks against live AWS state.
+  for scheduled or manually dispatched drift checks against live AWS state. It
+  expects `policy.py` and generated `policy/desired.json` in the policy
+  repository.
 - `github-actions/lakeformation-code-scanning.yml`: a copyable GitHub Actions
-  workflow that uploads lint and audit SARIF reports to GitHub Code Scanning.
+  workflow that checks generated desired state and uploads lint and audit SARIF
+  reports to GitHub Code Scanning.
 - `pre-commit/pre-commit-config.yaml`: a copyable local pre-commit hook that
-  checks a desired-state policy before commit.
+  regenerates and checks a desired-state policy before commit.
+
+YAML examples require installing `lfguard[yaml]`; JSON examples work with the
+base package.
 
 The snapshot is missing two desired LF-Tag values, one table tag assignment, and
 one LF-Tag policy grant. That makes it useful for seeing audit findings and
@@ -34,6 +42,20 @@ lfguard check \
 This command only reads local files. It validates the desired policy and current
 snapshot, then catches undefined LF-Tag keys and values in resource tag
 assignments and LF-Tag policy expressions.
+
+## Generate From Python
+
+Use `policy.py` when you want permission groups to be the source of truth:
+
+```bash
+lfguard generate examples/policy.py --output-file /tmp/lfguard-desired.json --force
+lfguard check --desired /tmp/lfguard-desired.json --fail-on-findings
+```
+
+The example assigns LF-Tags to neutral databases, tables, and a sensitive
+column. It uses user-defined groups such as `dataconsumer`, `dataengineer`,
+`operations`, and `catalog_admin`, while the package supplies the safer
+`reader()`, `editor()`, `table_creator()`, and `database_creator()` templates.
 
 ## Summarize the Policy
 
@@ -138,9 +160,10 @@ check and drift gates.
 ## Copy a Pre-Commit Hook
 
 Use [`pre-commit/pre-commit-config.yaml`](pre-commit/pre-commit-config.yaml) as
-a starting point when developers should check desired-state policy before
-committing. Copy it to `.pre-commit-config.yaml`, update the policy path, and
-install the hook in an environment where `lfguard` is available:
+a starting point when developers should regenerate and check desired-state
+policy before committing. Copy it to `.pre-commit-config.yaml`, update the
+policy paths, and install the hook in an environment where `lfguard` is
+available:
 
 ```bash
 python -m pip install lfguard pre-commit

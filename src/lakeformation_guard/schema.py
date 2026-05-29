@@ -40,6 +40,19 @@ STATE_JSON_SCHEMA: Dict[str, Any] = {
                 },
             ],
         },
+        "lf_tag_key_metadata": {
+            "description": "Optional authoring metadata for LF-Tag assignment scope.",
+            "oneOf": [
+                {
+                    "type": "object",
+                    "additionalProperties": {"$ref": "#/$defs/lfTagKeyMetadataValue"},
+                },
+                {
+                    "type": "array",
+                    "items": {"$ref": "#/$defs/lfTagKeyMetadata"},
+                },
+            ],
+        },
         "resource_tags": {
             "type": "array",
             "items": {"$ref": "#/$defs/resourceTagAssignment"},
@@ -58,6 +71,34 @@ STATE_JSON_SCHEMA: Dict[str, Any] = {
                 "key": _STRING_VALUE,
                 "values": _VALUE_LIST,
             },
+        },
+        "lfTagKeyMetadata": {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["key", "assignable_to"],
+            "properties": {
+                "key": _STRING_VALUE,
+                "assignable_to": {"$ref": "#/$defs/tagAssignmentScopeList"},
+            },
+        },
+        "lfTagKeyMetadataValue": {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["assignable_to"],
+            "properties": {
+                "assignable_to": {"$ref": "#/$defs/tagAssignmentScopeList"},
+            },
+        },
+        "tagAssignmentScopeList": {
+            "oneOf": [
+                {"enum": ["database", "table", "column"]},
+                {
+                    "type": "array",
+                    "items": {"enum": ["database", "table", "column"]},
+                    "minItems": 1,
+                    "uniqueItems": True,
+                },
+            ],
         },
         "resourceTagAssignment": {
             "type": "object",

@@ -30,6 +30,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     try:
         if args.command == "init":
             return _cmd_init(args)
+        if args.command == "generate":
+            return _cmd_generate(args)
         if args.command == "sample":
             return _cmd_sample(args)
         if args.command == "bootstrap":
@@ -87,6 +89,26 @@ def build_parser() -> argparse.ArgumentParser:
         help="Starter policy template. Defaults to data-domain.",
     )
     init_parser.add_argument("--force", action="store_true", help="Overwrite the output file if it already exists.")
+
+    generate_parser = subparsers.add_parser("generate", help="Generate desired state from a Python policy file.")
+    generate_parser.add_argument("policy_file", help="Python file that defines a LakePolicy object or factory.")
+    generate_parser.add_argument(
+        "--object",
+        default="policy",
+        help="Object or zero-argument factory name to load from the policy file. Defaults to policy.",
+    )
+    generate_parser.add_argument("--output-file", help="Write generated desired state to this file instead of stdout.")
+    generate_parser.add_argument(
+        "--format",
+        choices=("json", "yaml"),
+        help="Generated output format. Defaults to the output file extension, or json for stdout.",
+    )
+    generate_parser.add_argument(
+        "--check",
+        action="store_true",
+        help="Fail if the output file does not match generated desired state.",
+    )
+    generate_parser.add_argument("--force", action="store_true", help="Overwrite the output file if it already exists.")
 
     sample_parser = subparsers.add_parser("sample", help="Generate offline demo desired/current state files.")
     sample_parser.add_argument("--output-dir", required=True, help="Directory to write sample files into.")
@@ -335,6 +357,44 @@ def _cmd_init(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_generate(args: argparse.Namespace) -> int:
+    from .policy import load_policy
+
+    if args.check and args.force:
+        raise RuntimeError("--check cannot be combined with --force")
+    if args.check and not args.output_file:
+        raise RuntimeError("--check requires --output-file")
+    output_format = _resolve_init_format(args.format, args.output_file)
+    policy = load_policy(args.policy_file, object_name=args.object)
+    text = _dump_desired_state(policy.to_desired_state(), output_format)
+    if args.check:
+        output_path = Path(args.output_file)
+        try:
+            current_text = output_path.read_text(encoding="utf-8")
+        except OSError as exc:
+            raise RuntimeError("Could not read generated desired state from {}: {}".format(output_path, exc)) from exc
+        if current_text != text:
+            print(
+                "generated desired state is out of date: {}; run lfguard generate {} --output-file {} --force".format(
+                    output_path,
+                    args.policy_file,
+                    output_path,
+                ),
+                file=sys.stderr,
+            )
+            return 1
+        print("Generated desired state is up to date: {}".format(output_path))
+        return 0
+    if args.output_file:
+        output_path = Path(args.output_file)
+        if output_path.exists() and not args.force:
+            raise RuntimeError("{} already exists; pass --force to overwrite it".format(output_path))
+        _write_text_file(output_path, text, "generated desired state")
+    else:
+        print(text, end="")
+    return 0
+
+
 def _cmd_sample(args: argparse.Namespace) -> int:
     output_dir = Path(args.output_dir)
     files = _sample_files(
@@ -406,8 +466,16 @@ def _cmd_bootstrap(args: argparse.Namespace) -> int:
     desired_name = _bootstrap_desired_name(args.format)
     print("Wrote lfguard policy bootstrap to {}.\n".format(output_dir))
     print("Review and edit:")
+    print("  {}/policy.py".format(output_dir))
     print("  {}/policy/{}".format(output_dir, desired_name))
     print("\nRun:")
+    print(
+        "  lfguard generate {}/policy.py --output-file {}/policy/{} --force".format(
+            output_dir,
+            output_dir,
+            desired_name,
+        )
+    )
     print("  lfguard check --desired {}/policy/{} --fail-on-findings".format(output_dir, desired_name))
     if args.include_live_drift:
         print("\nLive drift workflow:")
@@ -662,9 +730,123 @@ def _resolve_init_format(requested_format: Optional[str], output_file: Optional[
 
 def _dump_starter_desired_state(output_format: str, template: str = "data-domain") -> str:
     data = _starter_desired_state(template)
+    return _dump_state_data(data, output_format)
+
+
+def _dump_desired_state(desired: DesiredState, output_format: str) -> str:
+    return _dump_state_data(desired.to_dict(), output_format, generated_header=True)
+
+
+def _dump_state_data(data: Mapping[str, Any], output_format: str, *, generated_header: bool = False) -> str:
     if output_format == "yaml":
-        return dumps_yaml(data)
+        header = "# Generated by policy.py. Do not edit directly.\n" if generated_header else ""
+        return header + dumps_yaml(data)
     return dumps_json(data)
+
+
+def _starter_permission_group_policy():
+    from .policy import (
+        LakePolicy,
+        TagAssignmentScope,
+        database_creator,
+        editor,
+        reader,
+        table_creator,
+    )
+
+    policy = LakePolicy()
+    policy.tag_key(
+        "domain",
+        values=["sales", "finance", "platform"],
+        assignable_to=[TagAssignmentScope.DATABASE, TagAssignmentScope.TABLE],
+    )
+    policy.tag_key(
+        "contains_pii",
+        values=["false", "true"],
+        assignable_to=[
+            TagAssignmentScope.DATABASE,
+            TagAssignmentScope.TABLE,
+            TagAssignmentScope.COLUMN,
+        ],
+    )
+    policy.tag_database("sales_curated", domain="sales", contains_pii="false")
+    policy.tag_table("sales_curated", "customers", contains_pii="false")
+    policy.tag_columns("sales_curated", "customers", "phone_number", contains_pii="true")
+    policy.tag_database("platform_ops", domain="platform", contains_pii="false")
+    policy.tag_table("platform_ops", "jobs", contains_pii="false")
+    policy.group("dataconsumer", reader().where(domain="sales", contains_pii="false"))
+    policy.group("dataengineer", table_creator().where(domain="sales"))
+    policy.group("operations", editor().where(domain="platform"))
+    policy.group("catalog_admin", database_creator())
+    policy.bind_role("arn:aws:iam::111122223333:role/DataConsumer", "dataconsumer")
+    policy.bind_role("arn:aws:iam::111122223333:role/DataEngineer", "dataengineer")
+    policy.bind_role("arn:aws:iam::111122223333:role/Operations", "operations")
+    policy.bind_role("arn:aws:iam::111122223333:role/CatalogAdmin", "catalog_admin")
+    return policy
+
+
+def _blank_permission_group_policy():
+    from .policy import LakePolicy
+
+    return LakePolicy()
+
+
+def _starter_policy_source() -> str:
+    return '''"""Lake Formation permission groups for lfguard."""
+
+from lakeformation_guard.policy import (
+    LakePolicy,
+    TagAssignmentScope,
+    database_creator,
+    editor,
+    reader,
+    table_creator,
+)
+
+
+policy = LakePolicy()
+
+policy.tag_key(
+    "domain",
+    values=["sales", "finance", "platform"],
+    assignable_to=[TagAssignmentScope.DATABASE, TagAssignmentScope.TABLE],
+)
+policy.tag_key(
+    "contains_pii",
+    values=["false", "true"],
+    assignable_to=[
+        TagAssignmentScope.DATABASE,
+        TagAssignmentScope.TABLE,
+        TagAssignmentScope.COLUMN,
+    ],
+)
+
+policy.tag_database("sales_curated", domain="sales", contains_pii="false")
+policy.tag_table("sales_curated", "customers", contains_pii="false")
+policy.tag_columns("sales_curated", "customers", "phone_number", contains_pii="true")
+policy.tag_database("platform_ops", domain="platform", contains_pii="false")
+policy.tag_table("platform_ops", "jobs", contains_pii="false")
+
+policy.group("dataconsumer", reader().where(domain="sales", contains_pii="false"))
+policy.group("dataengineer", table_creator().where(domain="sales"))
+policy.group("operations", editor().where(domain="platform"))
+policy.group("catalog_admin", database_creator())
+
+policy.bind_role("arn:aws:iam::111122223333:role/DataConsumer", "dataconsumer")
+policy.bind_role("arn:aws:iam::111122223333:role/DataEngineer", "dataengineer")
+policy.bind_role("arn:aws:iam::111122223333:role/Operations", "operations")
+policy.bind_role("arn:aws:iam::111122223333:role/CatalogAdmin", "catalog_admin")
+'''
+
+
+def _blank_policy_source() -> str:
+    return '''"""Lake Formation permission groups for lfguard."""
+
+from lakeformation_guard.policy import LakePolicy
+
+
+policy = LakePolicy()
+'''
 
 
 def _doctor_report(required_extras: Optional[Iterable[str]] = None) -> dict:
@@ -837,6 +1019,7 @@ def _render_iam_policy(policy: dict, output: str, *, template: str) -> str:
 
 _COMPLETION_COMMANDS = (
     "init",
+    "generate",
     "sample",
     "bootstrap",
     "schema",
@@ -856,6 +1039,7 @@ _COMPLETION_COMMANDS = (
 
 _COMPLETION_OPTIONS = {
     "init": ("--output-file", "--format", "--template", "--force", "--help"),
+    "generate": ("--object", "--output-file", "--format", "--check", "--force", "--help"),
     "sample": ("--output-dir", "--format", "--include-ci", "--force", "--help"),
     "bootstrap": (
         "--output-dir",
@@ -988,7 +1172,7 @@ def _render_bash_completion() -> str:
             '  COMPREPLY=( $(compgen -W "$opts" -- "$cur") )',
             "  return 0",
             "}",
-            "complete -F _lfguard_complete lfguard aws-lakeformation-guard",
+            "complete -F _lfguard_complete lfguard",
             "",
         ]
     )
@@ -997,7 +1181,7 @@ def _render_bash_completion() -> str:
 
 def _render_zsh_completion() -> str:
     lines = [
-        "#compdef lfguard aws-lakeformation-guard",
+        "#compdef lfguard",
         "",
         "_lfguard() {",
         "  local -a commands",
@@ -1039,21 +1223,13 @@ def _render_zsh_completion() -> str:
 def _render_fish_completion() -> str:
     lines = [
         "complete -c lfguard -f",
-        "complete -c aws-lakeformation-guard -f",
     ]
     for command in _COMPLETION_COMMANDS:
         lines.append("complete -c lfguard -n '__fish_use_subcommand' -a '{}'".format(command))
-        lines.append("complete -c aws-lakeformation-guard -n '__fish_use_subcommand' -a '{}'".format(command))
         for option in _COMPLETION_OPTIONS.get(command, ()):
             option_name = option[2:] if option.startswith("--") else option
             lines.append(
                 "complete -c lfguard -n '__fish_seen_subcommand_from {}' -l {}".format(command, option_name)
-            )
-            lines.append(
-                "complete -c aws-lakeformation-guard -n '__fish_seen_subcommand_from {}' -l {}".format(
-                    command,
-                    option_name,
-                )
             )
     lines.append("")
     return "\n".join(lines)
@@ -1364,8 +1540,21 @@ def _bootstrap_files(
     desired_name = _bootstrap_desired_name(output_format)
     desired_path = "policy/{}".format(desired_name)
     needs_yaml_extra = output_format == "yaml"
+    if template == "blank":
+        policy_source = _blank_policy_source()
+        desired_text = _dump_desired_state(
+            _blank_permission_group_policy().to_desired_state(),
+            output_format,
+        )
+    else:
+        policy_source = _starter_policy_source()
+        desired_text = _dump_desired_state(
+            _starter_permission_group_policy().to_desired_state(),
+            output_format,
+        )
     files = {
-        desired_path: _dump_starter_desired_state(output_format, template),
+        "policy.py": policy_source,
+        desired_path: desired_text,
         "policy/lfguard.schema.json": dumps_json(state_json_schema()),
         ".github/workflows/lfguard-policy.yml": _bootstrap_github_actions_workflow(
             desired_path,
@@ -1426,6 +1615,7 @@ on:
   pull_request:
     paths:
       - "{desired_path}"
+      - "policy.py"
       - "policy/lfguard.schema.json"
 
 permissions:
@@ -1450,6 +1640,7 @@ jobs:
       - name: Check and summarize policy
         run: |
           mkdir -p artifacts
+          lfguard generate policy.py --output-file {desired_path} --check
 
           lfguard check \\
             --desired {desired_path} \\
@@ -1482,12 +1673,12 @@ def _bootstrap_pre_commit_config(desired_path: str) -> str:
     return """repos:
   - repo: local
     hooks:
-      - id: lfguard-check-desired
-        name: lfguard check desired policy
-        entry: lfguard check --desired {desired_path} --fail-on-findings
+      - id: lfguard-generate-check
+        name: lfguard generate and check desired policy
+        entry: bash -c 'lfguard generate policy.py --output-file {desired_path} --force && lfguard check --desired {desired_path} --fail-on-findings'
         language: system
         pass_filenames: false
-        files: ^policy/desired\\.(json|ya?ml)$
+        files: ^(policy\\.py|policy/desired\\.(json|ya?ml))$
 """.format(
         desired_path=desired_path
     )
@@ -1537,6 +1728,7 @@ jobs:
       - name: Validate policy before AWS access
         run: |
           mkdir -p artifacts snapshots
+          lfguard generate policy.py --output-file {desired_path} --check
 
           lfguard check \\
             --desired {desired_path} \\
@@ -1646,6 +1838,7 @@ jobs:
       - name: Generate lfguard SARIF reports
         run: |
           mkdir -p artifacts snapshots
+          lfguard generate policy.py --output-file {desired_path} --check
 
           lfguard validate --desired {desired_path}
 
@@ -1897,11 +2090,12 @@ This directory is a starter Lake Formation policy-as-code layout generated by
 
 ## Files
 
-- `{desired_path}`: starter desired LF-Tag and grant policy.
+- `policy.py`: Python source of truth for permission groups.
+- `{desired_path}`: generated desired LF-Tag and grant policy.
 - `policy/lfguard.schema.json`: JSON Schema for editor integration.
 - `.github/workflows/lfguard-policy.yml`: offline CI check, summary, and report
   artifact workflow.
-- `.pre-commit-config.yaml`: local check hook.
+- `.pre-commit-config.yaml`: local generate-and-check hook.
 {workflow_files}
 {review_files}
 {editor_files}
@@ -1910,6 +2104,7 @@ This directory is a starter Lake Formation policy-as-code layout generated by
 
 ```bash
 {install_command}
+lfguard generate policy.py --output-file {desired_path} --force
 lfguard check --desired {desired_path} --fail-on-findings
 lfguard summary --desired {desired_path}
 ```
@@ -1919,10 +2114,11 @@ lfguard summary --desired {desired_path}
 
 ## Next Steps
 
-1. Replace example LF-Tag keys, values, resources, and principals with sanitized
-   names from your environment.
-2. Commit the policy file, schema, workflow, pre-commit configuration, and any
-   generated review or editor files.
+1. Replace example LF-Tag keys, values, permission groups, and principals in
+   `policy.py` with sanitized names from your environment.
+2. Generate `{desired_path}`, then commit `policy.py`, the generated desired
+   file, schema, workflow, pre-commit configuration, and any generated review or
+   editor files.
 3. {live_drift_next_step}
 4. Review every `lfguard plan` before using `lfguard apply --execute`.
 """.format(

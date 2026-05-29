@@ -16,7 +16,7 @@ Configure a pending publisher in PyPI with:
 - Workflow: `release.yml`
 - Environment: `pypi`
 
-Then publish a GitHub release for a tag such as `v0.1.1`. The release workflow
+Then publish a GitHub release for a tag such as `v0.2.0`. The release workflow
 first verifies that the release tag matches the package version, builds the
 artifacts, verifies distribution filenames and embedded metadata, checks them,
 smoke-tests the built wheel through an installed `lfguard` CLI, uploads to PyPI
@@ -37,7 +37,9 @@ python -m twine check dist/*
 python -m venv /tmp/lfguard-wheel-smoke
 /tmp/lfguard-wheel-smoke/bin/python -m pip install --no-index --find-links dist lfguard
 /tmp/lfguard-wheel-smoke/bin/lfguard --version
-/tmp/lfguard-wheel-smoke/bin/aws-lakeformation-guard --version
+/tmp/lfguard-wheel-smoke/bin/lfguard generate examples/policy.py --output-file /tmp/lfguard-policy.json --force
+/tmp/lfguard-wheel-smoke/bin/lfguard generate examples/policy.py --output-file /tmp/lfguard-policy.json --check
+/tmp/lfguard-wheel-smoke/bin/lfguard check --desired /tmp/lfguard-policy.json --fail-on-findings
 /tmp/lfguard-wheel-smoke/bin/lfguard sample --output-dir /tmp/lfguard-demo
 /tmp/lfguard-wheel-smoke/bin/lfguard check \
   --desired /tmp/lfguard-demo/desired.json \
@@ -49,7 +51,7 @@ After the GitHub release workflow finishes, verify PyPI and the tag:
 
 ```bash
 python -m pip index versions lfguard
-git ls-remote --tags origin v0.1.1
+git ls-remote --tags origin v0.2.0
 ```
 
 The release workflow also runs this published-package smoke test automatically

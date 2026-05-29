@@ -21,13 +21,13 @@ The first release focuses on the core guardrail loop:
 
 The most useful next improvements are:
 
-- Add a Python-native permission group authoring layer that compiles to normal
-  desired state while enforcing reader, whole-table reader, writer, editor, and
-  admin access models.
-- Add strict, migration, and audit enforcement modes without weakening the
-  default strict guardrails.
+- Harden the Python-native permission group authoring layer with more
+  real-world examples, clearer validation messages, and migration guidance from
+  hand-written desired state.
 - More real-world examples for LF-Tag policy grants, table-with-columns grants,
   and data location permissions.
+- Better current-state explanation output for "why can this role see this
+  database/table/column?" reviews.
 - Better validation messages that point directly at the problematic field in a
   desired-state file.
 - Additional report examples for pull request comments and scheduled governance

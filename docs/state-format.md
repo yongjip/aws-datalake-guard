@@ -7,6 +7,7 @@ now.
 ```json
 {
   "lf_tags": {},
+  "lf_tag_key_metadata": {},
   "resource_tags": [],
   "grants": []
 }
@@ -41,6 +42,38 @@ The equivalent list form is also accepted:
 
 Single values may be written as strings anywhere a value list is accepted.
 
+## LF-Tag Key Metadata
+
+Generated policy files may include `lf_tag_key_metadata`. This section is not
+read from AWS; it records where a tag key may be assigned so `lfguard` can tell
+whether an LF-Tag table policy might narrow access to matching columns.
+
+```json
+{
+  "lf_tag_key_metadata": {
+    "domain": {"assignable_to": ["database", "table"]},
+    "contains_pii": {"assignable_to": ["database", "table", "column"]}
+  }
+}
+```
+
+The equivalent list form is also accepted:
+
+```json
+{
+  "lf_tag_key_metadata": [
+    {"key": "domain", "assignable_to": ["database", "table"]},
+    {"key": "contains_pii", "assignable_to": ["database", "table", "column"]}
+  ]
+}
+```
+
+When this metadata is absent, the linter stays conservative for LF-Tag table
+grants that combine `SELECT` with mutation permissions.
+When this metadata is present, the linter also checks resource tag assignments
+against the declared scopes. For example, a key declared as assignable only to
+`database` and `table` cannot be assigned to a `table_with_columns` resource.
+
 ## Resource Tag Assignments
 
 Use `resource_tags` to attach LF-Tags to Data Catalog resources:
@@ -69,7 +102,9 @@ assignments to one lower-case value per key. Use multiple values only in
 `lf_tags` definitions or LF-Tag policy expressions.
 
 Supported resource kinds are shown below. `catalog_id` is optional for each
-resource kind when you need to target a specific Glue Data Catalog.
+resource kind when you need to target a specific Glue Data Catalog. LF-Tag
+assignments are valid on databases, tables, and columns; `lfguard` lints
+resource tag assignments on other resource kinds as errors.
 
 ### Catalog
 

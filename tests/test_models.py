@@ -1,6 +1,6 @@
 import unittest
 
-from lakeformation_guard.models import DesiredState, ResourceRef
+from lakeformation_guard.models import DesiredState, LFTagKeyMetadata, ResourceRef
 
 
 class ModelTests(unittest.TestCase):
@@ -51,6 +51,25 @@ class ModelTests(unittest.TestCase):
         self.assertEqual(
             first.identity,
             "lf_tag_policy:resource_type=TABLE:expression=domain=sales,sensitivity=internal|public",
+        )
+
+    def test_state_parses_optional_lf_tag_key_metadata(self):
+        state = DesiredState.from_dict(
+            {
+                "lf_tags": {"domain": ["sales"]},
+                "lf_tag_key_metadata": {
+                    "domain": {"assignable_to": ["table", "column", "database"]},
+                },
+            }
+        )
+
+        self.assertEqual(
+            state.lf_tag_key_metadata,
+            (LFTagKeyMetadata("domain", ("database", "table", "column")),),
+        )
+        self.assertEqual(
+            state.to_dict()["lf_tag_key_metadata"],
+            {"domain": {"assignable_to": ["database", "table", "column"]}},
         )
 
 

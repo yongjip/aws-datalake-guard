@@ -72,15 +72,16 @@ Use separate roles and workflows:
 - Destructive maintenance role: execute revokes and removals only during
   scheduled governance maintenance with explicit approval.
 
-For authoring, keep column-filtered reader intent separate from writer intent.
-Reader permission groups may use column-narrowing filters such as
-`contains_pii=false` when they grant only `SELECT` and `DESCRIBE`. Writer groups
-should always provide reader capability too, but it must be whole-table reader
-capability. The authoring layer should compile writer intent into separate
-whole-table `SELECT`/`DESCRIBE` and write grants instead of one Lake Formation
-grant that mixes `SELECT` with `INSERT`, `DELETE`, `ALTER`, or `DROP`.
-Those generated grants should be treated as one logical permission-group
-invariant so drift review does not manage the read and write halves separately.
+For authoring, keep column-filtered reader intent separate from edit and create
+intent. Reader permission groups may use column-narrowing filters such as
+`contains_pii=false` when they grant only `SELECT` and `DESCRIBE`. Editor and
+table-creator groups must use tag filters that cannot be assigned to columns,
+so their effective access remains whole-table. `table_creator()` adds database-level
+`CREATE_TABLE`; `database_creator()` is separate because catalog-level
+`CREATE_DATABASE` is broader than table creation inside an approved database.
+AWS database creators also receive follow-on metadata authority on databases
+they create, so this template belongs in a narrow onboarding or catalog
+administration role.
 
 Store desired state in source control. Store generated snapshots and reports
 according to your organization's data classification rules because they may

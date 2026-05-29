@@ -35,20 +35,23 @@ python -m pip install "lfguard[yaml]"
 lfguard sample --output-dir lfguard-demo-yaml --format yaml
 ```
 
-## 2. Draft Desired State
+## 2. Draft Policy
 
-Create a starter policy and replace the example names with sanitized values from
-your environment:
+Create a starter policy repository and replace the example names in `policy.py`
+with sanitized values from your environment:
 
 ```bash
-lfguard init --output-file policy/desired.json
+lfguard bootstrap --output-dir lfguard-policy
+cd lfguard-policy
+lfguard generate policy.py --output-file policy/desired.json --force
 ```
 
 Use JSON first unless your repository already standardizes on YAML. Add the YAML
-extra when needed:
+extra when needed and generate `policy/desired.yaml` instead:
 
 ```bash
 python -m pip install "lfguard[yaml]"
+lfguard generate policy.py --output-file policy/desired.yaml --force
 ```
 
 ## 3. Check Policy Locally
@@ -59,8 +62,9 @@ Run the offline check before connecting to AWS:
 lfguard check --desired policy/desired.json --fail-on-findings
 ```
 
-Commit desired state only after principal names, database names, table names,
-and LF-Tag values have passed parser, lint, and review rules.
+Commit `policy.py` and generated desired state only after principal names,
+database names, table names, and LF-Tag values have passed parser, lint, and
+review rules.
 
 Generate a compact summary for reviewers:
 
@@ -82,8 +86,8 @@ lfguard snapshot \
   --output-file snapshots/sandbox-current.json
 ```
 
-The snapshot scope comes from desired state, so review the desired file before
-using it to read live AWS state.
+The snapshot scope comes from generated desired state, so review `policy.py` and
+`policy/desired.json` before using them to read live AWS state.
 
 ## 5. Add CI Drift Checks
 
@@ -183,8 +187,8 @@ lfguard plan \
 
 Before production use, confirm:
 
-- The desired-state file is reviewed and owned by the right platform or data
-  governance team.
+- `policy.py` and generated desired state are reviewed and owned by the right
+  platform or data governance team.
 - CI stores audit, plan, or apply reports as artifacts.
 - The AWS principal used by automation has only the needed read or apply
   permissions.

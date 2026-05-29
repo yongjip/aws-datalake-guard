@@ -47,7 +47,7 @@ Lake Formation permissions.
 
 ## Does it manage every Lake Formation feature?
 
-No. Version 0.1.0 focuses on a deliberately small guardrail surface:
+No. `lfguard` focuses on a deliberately small guardrail surface:
 
 - LF-Tag definitions and allowed values.
 - LF-Tag assignments on catalog resources.
@@ -59,8 +59,9 @@ for live inventory and apply.
 
 ## How should teams adopt it?
 
-Start offline with `lfguard sample`, then generate a desired-state file with
-`lfguard init`. Once the shape matches your policy model, add a CI job that runs
+Start offline with `lfguard sample`. For a real policy repository, define
+permission groups and tag assignments in `policy.py`, generate desired state
+with `lfguard generate`, then add a CI job that runs
 `lfguard check --fail-on-findings`, `lfguard audit`, or
 `lfguard plan --fail-on-changes` against a current-state snapshot.
 

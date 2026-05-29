@@ -16,6 +16,9 @@ RESOURCE_KINDS = {
     "lf_tag_policy",
 }
 
+TAG_ASSIGNMENT_SCOPES = {"database", "table", "column"}
+TAG_ASSIGNMENT_SCOPE_ORDER = {"database": 0, "table": 1, "column": 2}
+
 
 def _normalize_kind(value: str) -> str:
     kind = value.strip().lower().replace("-", "_")
@@ -33,6 +36,20 @@ def _string_tuple(values: Iterable[str], *, field_name: str) -> Tuple[str, ...]:
     if not normalized:
         raise ValueError("{} must contain at least one value".format(field_name))
     return normalized
+
+
+def _tag_assignment_scope_tuple(values: Iterable[str], *, field_name: str) -> Tuple[str, ...]:
+    raw_values = _string_tuple(values, field_name=field_name)
+    unsupported = sorted(set(raw_values) - TAG_ASSIGNMENT_SCOPES)
+    if unsupported:
+        raise ValueError(
+            "{} contains unsupported scopes {}. Expected one of: {}".format(
+                field_name,
+                ", ".join(unsupported),
+                ", ".join(sorted(TAG_ASSIGNMENT_SCOPES)),
+            )
+        )
+    return tuple(sorted(set(raw_values), key=lambda value: TAG_ASSIGNMENT_SCOPE_ORDER[value]))
 
 
 def _values_from_raw(raw: Any, *, field_name: str) -> Tuple[str, ...]:
@@ -221,6 +238,43 @@ class LFTagDefinition:
         return {"key": self.key, "values": list(self.values)}
 
 
+@dataclass(frozen=True, order=True)
+class LFTagKeyMetadata:
+    """Authoring metadata for an LF-Tag key.
+
+    This metadata is optional and not read from AWS. It lets lfguard distinguish
+    table-wide LF-Tag policy grants from grants that may narrow access to
+    matching columns.
+    """
+
+    key: str
+    assignable_to: Tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "key", self.key.strip())
+        object.__setattr__(
+            self,
+            "assignable_to",
+            _tag_assignment_scope_tuple(self.assignable_to, field_name="LF-Tag assignable_to"),
+        )
+        if not self.key:
+            raise ValueError("LF-Tag key must not be empty")
+
+    @classmethod
+    def from_raw(cls, key: str, raw: Any) -> "LFTagKeyMetadata":
+        if isinstance(raw, Mapping):
+            assignable_to = raw.get("assignable_to", ())
+        else:
+            assignable_to = raw
+        return cls(
+            key=str(key),
+            assignable_to=_values_from_raw(assignable_to, field_name="LF-Tag assignable_to"),
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {"key": self.key, "assignable_to": list(self.assignable_to)}
+
+
 @dataclass(frozen=True)
 class ResourceTagAssignment:
     """Desired or current LF-Tag assignment for a resource."""
@@ -314,6 +368,7 @@ class GuardrailState:
     """Serializable Lake Formation state used for desired policy and snapshots."""
 
     lf_tags: Tuple[LFTagDefinition, ...] = field(default_factory=tuple)
+    lf_tag_key_metadata: Tuple[LFTagKeyMetadata, ...] = field(default_factory=tuple)
     resource_tags: Tuple[ResourceTagAssignment, ...] = field(default_factory=tuple)
     grants: Tuple[Grant, ...] = field(default_factory=tuple)
 
@@ -337,6 +392,26 @@ class GuardrailState:
         else:
             raise ValueError("lf_tags must be a mapping or list")
 
+        metadata_raw = raw.get("lf_tag_key_metadata", {})
+        if isinstance(metadata_raw, Mapping):
+            lf_tag_key_metadata = tuple(
+                LFTagKeyMetadata.from_raw(str(key), value)
+                for key, value in metadata_raw.items()
+            )
+        elif isinstance(metadata_raw, Iterable):
+            metadata_items = []
+            for item in metadata_raw:
+                item_mapping = _require_mapping(item, "lf_tag_key_metadata[]")
+                metadata_items.append(
+                    LFTagKeyMetadata.from_raw(
+                        str(item_mapping.get("key", "")),
+                        item_mapping,
+                    )
+                )
+            lf_tag_key_metadata = tuple(metadata_items)
+        else:
+            raise ValueError("lf_tag_key_metadata must be a mapping or list")
+
         resource_tags = tuple(
             ResourceTagAssignment.from_dict(_require_mapping(item, "resource_tags[]"))
             for item in raw.get("resource_tags", ())
@@ -344,6 +419,7 @@ class GuardrailState:
         grants = tuple(Grant.from_dict(_require_mapping(item, "grants[]")) for item in raw.get("grants", ()))
         return cls(
             lf_tags=tuple(sorted(lf_tags)),
+            lf_tag_key_metadata=tuple(sorted(lf_tag_key_metadata)),
             resource_tags=resource_tags,
             grants=tuple(sorted(grants)),
         )
@@ -355,11 +431,17 @@ class GuardrailState:
         return load_state(Path(path), cls)
 
     def to_dict(self) -> Dict[str, Any]:
-        return {
+        data: Dict[str, Any] = {
             "lf_tags": {tag.key: list(tag.values) for tag in self.lf_tags},
-            "resource_tags": [assignment.to_dict() for assignment in self.resource_tags],
-            "grants": [grant.to_dict() for grant in self.grants],
         }
+        if self.lf_tag_key_metadata:
+            data["lf_tag_key_metadata"] = {
+                metadata.key: {"assignable_to": list(metadata.assignable_to)}
+                for metadata in self.lf_tag_key_metadata
+            }
+        data["resource_tags"] = [assignment.to_dict() for assignment in self.resource_tags]
+        data["grants"] = [grant.to_dict() for grant in self.grants]
+        return data
 
 
 class DesiredState(GuardrailState):

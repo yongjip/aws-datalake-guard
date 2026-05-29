@@ -300,7 +300,7 @@ summary:
 
 ```bash
 lfguard audit \
-  --desired policy/desired.yaml \
+  --desired policy/desired.json \
   --current-snapshot snapshots/prod-current.json \
   --output json \
   --output-file artifacts/lfguard-audit.json \

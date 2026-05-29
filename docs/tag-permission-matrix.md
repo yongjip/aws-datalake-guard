@@ -116,7 +116,7 @@ matches any value for `domain`, but it still requires the resource to have the
 | Named data-location grant | None. The grant names an S3 location resource. | Registering and writing table data in controlled workflows. | Supported. |
 | LF-Tag policy for `DATABASE` | Matches effective database LF-Tags. | Attribute-based database `DESCRIBE`, `CREATE_TABLE`, or controlled database administration. | Preferred for scalable database access. |
 | LF-Tag policy for `TABLE` | Matches effective table, view, and column LF-Tags. | Attribute-based table/view access and column-sensitive `SELECT`. | Preferred for scalable table access. |
-| LF-Tag value permission | Grants authority on the tag/value itself, not data. | Allowing stewards to describe, assign, or delegate tag expressions. | Not modeled as desired grants in 0.1.0. |
+| LF-Tag value permission | Grants authority on the tag/value itself, not data. | Allowing stewards to describe, assign, or delegate tag expressions. | Not modeled as desired grants. |
 
 Named and LF-TBAC grants union together. For example, a principal with
 `SELECT` from an LF-Tag policy and `INSERT` from a named table grant can have
@@ -175,10 +175,10 @@ models them.
 | Data location | `DATA_LOCATION_ACCESS`. | `data_location` grants are supported. |
 | LF-Tag policy - database | Database permissions on databases matching an LF-Tag expression. | Supported as `lf_tag_policy` with `resource_type=DATABASE`. |
 | LF-Tag policy - table | Table permissions on tables/views/columns matching an LF-Tag expression. | Supported as `lf_tag_policy` with `resource_type=TABLE`. |
-| LF-Tag values | `ASSOCIATE`, `DESCRIBE`, and grant-with-LF-Tag-expression permissions. | Not modeled as desired grants in 0.1.0. Use native Lake Formation administration for LF-Tag permission delegation. |
+| LF-Tag values | `ASSOCIATE`, `DESCRIBE`, and grant-with-LF-Tag-expression permissions. | Not modeled as desired grants. Use native Lake Formation administration for LF-Tag permission delegation. |
 | LF-Tags themselves | `ALTER`, `DROP`. | `lfguard` can create/update LF-Tag definitions during apply, but does not model administrative LF-Tag delegation grants. |
-| Data filters / cell filters | `SELECT`, `DESCRIBE`, `DROP` on filtered table resources. | Not modeled in 0.1.0. Keep row and cell filters in native Lake Formation or infrastructure tooling. |
-| Resource links | `DESCRIBE`, `DROP`. | Not modeled separately in 0.1.0. |
+| Data filters / cell filters | `SELECT`, `DESCRIBE`, `DROP` on filtered table resources. | Not modeled. Keep row and cell filters in native Lake Formation or infrastructure tooling. |
+| Resource links | `DESCRIBE`, `DROP`. | Not modeled separately. |
 
 ## Permission Behavior Matrix
 
@@ -186,7 +186,7 @@ models them.
 | --- | --- | --- | --- |
 | `DESCRIBE` | Read metadata and make catalog objects visible. | Catalog, database, table, resource link, LF-Tag. | Often paired with `SELECT`; still requires IAM API permissions. |
 | `SELECT` | Query table data and view selected column metadata. | Table, table with column filter, LF-Tag policy table, data filter. | The only table data permission that naturally supports column filtering. |
-| `CREATE_DATABASE` | Create metadata databases or resource links in the catalog. | Data Catalog/catalog. | Keep out of routine read roles. |
+| `CREATE_DATABASE` | Create metadata databases or resource links in the catalog. | Data Catalog/catalog. | Keep out of routine read roles; AWS gives creators follow-on metadata authority on databases they create. |
 | `CREATE_TABLE` | Create tables in a database. | Database or LF-Tag policy database. | Mutating permission; isolate to producer/steward workflows. |
 | `ALTER` | Change metadata for databases, tables, or LF-Tags. | Database, table, LF-Tag. | Mutating permission; partial-column LF-TBAC matches do not grant table `ALTER`. |
 | `INSERT` | Insert/update/read data at a table's registered S3 location. | Table or LF-Tag policy table. | Mutating permission; conflicts with column-filtered `SELECT`. |
@@ -253,13 +253,14 @@ controlled database permission model.
 - Is `*` used only when all values for a key are truly intended?
 - Are partial-column `SELECT` grants kept separate from table-level mutation
   permissions?
-- Are LF-Tag `TABLE` policies split so read tags get only `SELECT`/`DESCRIBE`
-  and writer/admin tags carry `INSERT`, `DELETE`, `ALTER`, or `DROP`?
+- Do LF-Tag `TABLE` policies that combine `SELECT` with `INSERT`, `DELETE`,
+  `ALTER`, or `DROP` use only tag keys that cannot be assigned to columns?
 - Are destructive operations and grant-option delegation reviewed separately?
 
 ## Source References
 
 - [AWS Lake Formation permissions reference](https://docs.aws.amazon.com/lake-formation/latest/dg/lf-permissions-reference.html)
+- [Creating a database](https://docs.aws.amazon.com/lake-formation/latest/dg/creating-database.html)
 - [Lake Formation tag-based access control](https://docs.aws.amazon.com/lake-formation/latest/dg/tag-based-access-control.html)
 - [LF-Tag best practices and considerations](https://docs.aws.amazon.com/lake-formation/latest/dg/lf-tag-considerations.html)
 - [Assigning LF-Tags to Data Catalog resources](https://docs.aws.amazon.com/lake-formation/latest/dg/TBAC-assigning-tags.html)

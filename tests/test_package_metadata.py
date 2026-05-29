@@ -30,11 +30,11 @@ class PackageMetadataTests(unittest.TestCase):
         self.assertIn("## {}".format(__version__), changelog)
         self.assertIn("v{}".format(__version__), publishing)
 
-    def test_console_scripts_include_primary_command_and_alias(self):
+    def test_console_scripts_include_primary_command(self):
         console_scripts = self.config["options.entry_points"]["console_scripts"]
 
         self.assertIn("lfguard = lakeformation_guard.cli:main", console_scripts)
-        self.assertIn("aws-lakeformation-guard = lakeformation_guard.cli:main", console_scripts)
+        self.assertNotIn("aws-lakeformation-guard", console_scripts)
 
     def test_license_metadata_uses_spdx_expression(self):
         metadata = self.config["metadata"]
@@ -47,7 +47,8 @@ class PackageMetadataTests(unittest.TestCase):
     def test_source_distribution_includes_example_workflows(self):
         manifest = (self.root / "MANIFEST.in").read_text(encoding="utf-8")
 
-        self.assertIn("recursive-include examples *.json *.md *.yaml *.yml", manifest)
+        self.assertIn("recursive-include examples *.json *.md *.py *.yaml *.yml", manifest)
+        self.assertTrue((self.root / "examples" / "policy.py").exists())
         self.assertTrue((self.root / "examples" / "github-actions" / "lakeformation-drift.yml").exists())
         self.assertTrue((self.root / "examples" / "pre-commit" / "pre-commit-config.yaml").exists())
 
@@ -97,9 +98,14 @@ class PackageMetadataTests(unittest.TestCase):
         for workflow_path in workflow_paths:
             workflow = workflow_path.read_text(encoding="utf-8")
             self.assertIn("/lfguard --version", workflow)
-            self.assertIn("/aws-lakeformation-guard --version", workflow)
+            self.assertNotIn("/aws-lakeformation-guard --version", workflow)
+            self.assertIn("/lfguard generate examples/policy.py --output-file /tmp/lfguard-policy.json --check", workflow)
+            self.assertIn("/lfguard bootstrap --output-dir /tmp/lfguard-policy-bootstrap", workflow)
+            self.assertIn("/tmp/lfguard-policy-bootstrap/policy.py", workflow)
             self.assertIn("/lfguard check", workflow)
             self.assertIn("--current-snapshot /tmp/lfguard-demo/current-snapshot.json", workflow)
+            self.assertIn("LakePolicy", workflow)
+            self.assertIn("table_creator", workflow)
 
     def test_release_workflow_verifies_published_package(self):
         workflow = (self.root / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
@@ -117,5 +123,10 @@ class PackageMetadataTests(unittest.TestCase):
         self.assertIn('python -m pip install --no-cache-dir "lfguard==${version}"', workflow)
         self.assertIn('test "$(lfguard --version)" = "lfguard ${version}"', workflow)
         self.assertIn("sleep 15", workflow)
+        self.assertIn("lfguard bootstrap --output-dir /tmp/lfguard-pypi-policy", workflow)
+        self.assertIn("lfguard generate /tmp/lfguard-pypi-policy/policy.py", workflow)
+        self.assertIn("--output-file /tmp/lfguard-pypi-policy/policy/desired.json --check", workflow)
         self.assertIn("lfguard sample --output-dir /tmp/lfguard-pypi-demo", workflow)
-        self.assertIn("aws-lakeformation-guard --version", workflow)
+        self.assertIn("LakePolicy", workflow)
+        self.assertIn("table_creator", workflow)
+        self.assertNotIn("aws-lakeformation-guard --version", workflow)

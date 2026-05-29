@@ -92,5 +92,4 @@ pipx install lfguard
 uv tool install lfguard
 ```
 
-The import package is `lakeformation_guard`, and the primary CLI is `lfguard`.
-The longer `aws-lakeformation-guard` command is installed as an alias.
+The import package is `lakeformation_guard`, and the CLI is `lfguard`.

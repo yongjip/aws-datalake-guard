@@ -9,9 +9,7 @@ and Glue Data Catalog guardrails. It compares a desired LF-Tag and permission
 policy against current state, reports drift, produces a conservative change plan,
 and can apply only the changes that you explicitly allow.
 
-The import package is `lakeformation_guard`; the primary CLI command is
-`lfguard`. The package also installs `aws-lakeformation-guard` as a descriptive
-command alias.
+The import package is `lakeformation_guard`; the CLI command is `lfguard`.
 
 ## What it manages
 
@@ -19,6 +17,7 @@ command alias.
 - LF-Tag assignments on Lake Formation Data Catalog resources.
 - Lake Formation grants on catalog, database, table, column, data location, and
   LF-Tag policy resources.
+- Python-native permission groups that generate reviewable desired state.
 - Offline audit and plan workflows from JSON or YAML snapshots.
 - Live AWS inventory and apply workflows through the optional `boto3` adapter.
 
@@ -55,10 +54,10 @@ desired-state file so drift checks stay focused and reviewable.
 | 3 | `lfguard plan` | Produce the conservative change set reviewers should approve. |
 | 4 | `lfguard apply` | Dry-run by default; execute only after review. |
 
-Everything else is supporting workflow: sample files, repository bootstrap,
-schema export, install diagnostics, IAM policy starters, and report formatting.
-Those helpers are optional. The core value is still check, audit, plan, and
-conservative apply.
+Everything else is supporting workflow: Python policy generation, sample files,
+repository bootstrap, schema export, install diagnostics, IAM policy starters,
+and report formatting. Those helpers are optional. The core value is still
+check, audit, plan, and conservative apply.
 
 `lfguard check --fail-on-findings` is deliberately rigid: it blocks undefined
 tags, mixed-case LF-Tags, multiple values for one key on a resource, broad
@@ -157,7 +156,73 @@ Plan: 3 change(s), 3 safe, 0 destructive.
 
 ## Desired state format
 
-JSON and YAML use the same shape:
+For permission-group workflows, author `policy.py` and generate desired state:
+
+```python
+from lakeformation_guard.policy import (
+    LakePolicy,
+    TagAssignmentScope,
+    database_creator,
+    reader,
+    table_creator,
+)
+
+policy = LakePolicy()
+policy.tag_key(
+    "domain",
+    values=["sales", "finance", "platform"],
+    assignable_to=[TagAssignmentScope.DATABASE, TagAssignmentScope.TABLE],
+)
+policy.tag_key(
+    "contains_pii",
+    values=["false", "true"],
+    assignable_to=[
+        TagAssignmentScope.DATABASE,
+        TagAssignmentScope.TABLE,
+        TagAssignmentScope.COLUMN,
+    ],
+)
+
+policy.tag_database("sales_curated", domain="sales", contains_pii="false")
+policy.tag_table("sales_curated", "customers", contains_pii="false")
+policy.tag_columns("sales_curated", "customers", "phone_number", contains_pii="true")
+
+policy.group("dataconsumer", reader().where(domain="sales", contains_pii="false"))
+policy.group("dataengineer", table_creator().where(domain="sales"))
+policy.group("catalog_admin", database_creator())
+
+policy.bind_role("arn:aws:iam::111122223333:role/DataConsumer", "dataconsumer")
+policy.bind_role("arn:aws:iam::111122223333:role/DataEngineer", "dataengineer")
+policy.bind_role("arn:aws:iam::111122223333:role/CatalogAdmin", "catalog_admin")
+```
+
+`tag_database()`, `tag_table()`, and `tag_columns()` write normal
+`resource_tags` entries. Their tag keys must be declared with an assignment
+scope that includes that resource level.
+For LF-Tag keys that are not valid Python identifiers, use mapping form:
+
+```python
+policy.group("dataconsumer", reader().where({"data-domain": "sales"}))
+policy.tag_database("sales_curated", tags={"data-domain": "sales"})
+```
+
+```bash
+lfguard generate policy.py --output-file policy/desired.json --force
+lfguard generate policy.py --output-file policy/desired.json --check
+lfguard check --desired policy/desired.json --fail-on-findings
+```
+
+The built-in templates are intentionally small:
+
+| Template | Lake Formation intent |
+| --- | --- |
+| `reader()` | `DESCRIBE` databases and `DESCRIBE`/`SELECT` matching tables. Column-narrowing LF-Tags are allowed. |
+| `editor()` | `DESCRIBE` databases and `DESCRIBE`/`SELECT`/`INSERT`/`DELETE` matching whole tables. Column-narrowing LF-Tags are rejected. |
+| `table_creator()` | `DESCRIBE`/`CREATE_TABLE` matching databases and editor-style table access. Column-narrowing LF-Tags are rejected. |
+| `database_creator()` | Catalog-level `CREATE_DATABASE`. No LF-Tag filter is used because AWS grants this on the catalog. Use sparingly; AWS gives database creators follow-on metadata authority on databases they create. |
+
+Raw JSON and YAML remain supported for lower-level workflows and use the same
+shape:
 
 ```json
 {
@@ -224,6 +289,8 @@ Starter and support commands:
 
 ```bash
 lfguard init --output-file policy/desired.json
+lfguard generate policy.py --output-file policy/desired.json
+lfguard generate policy.py --output-file policy/desired.json --check
 lfguard sample --output-dir lfguard-demo
 lfguard bootstrap --output-dir lfguard-policy
 lfguard schema --output-file policy/lfguard.schema.json
@@ -288,7 +355,7 @@ The live adapter only depends on `boto3` when you instantiate it:
 from lakeformation_guard import DesiredState, PlanOptions, plan
 from lakeformation_guard.aws import AWSLakeFormationAdapter
 
-desired = DesiredState.from_file("desired.yaml")
+desired = DesiredState.from_file("desired.json")
 adapter = AWSLakeFormationAdapter.from_boto3(profile_name="prod", region_name="ap-northeast-2")
 current = adapter.load_current_state_for(desired)
 change_plan = plan(desired, current, PlanOptions())
@@ -303,10 +370,9 @@ not turn destructive changes on by default.
 
 The repository includes GitHub Actions for CI and PyPI Trusted Publishing. See
 [`docs/publishing.md`](docs/publishing.md) for the release path and the exact
-PyPI publisher settings. The latest patch release notes are in
-[`docs/release-notes/v0.1.1.md`](docs/release-notes/v0.1.1.md), and the first
-public release notes remain in
-[`docs/release-notes/v0.1.0.md`](docs/release-notes/v0.1.0.md).
+PyPI publisher settings. The latest release notes are in
+[`docs/release-notes/v0.2.0.md`](docs/release-notes/v0.2.0.md), with prior
+release notes under [`docs/release-notes/`](docs/release-notes/).
 
 ## More docs
 
@@ -323,8 +389,8 @@ public release notes remain in
   LF-Tag inheritance, expression matching, grant shapes, column override cases,
   and permission/resource combinations.
 - [`docs/policy-authoring-direction.md`](docs/policy-authoring-direction.md):
-  planned Python-native permission group authoring layer, access models, and
-  strict/migration/audit modes.
+  Python-native permission group authoring layer with reader, editor,
+  table creator, and database creator templates.
 - [`docs/report-formats.md`](docs/report-formats.md): JSON and Markdown report
   shapes for audits, plans, applies, and CI artifacts.
 - [`docs/architecture.md`](docs/architecture.md): package boundaries, data

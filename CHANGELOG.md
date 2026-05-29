@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.2.0
+
+- Adds the Python-native `lakeformation_guard.policy` authoring layer for
+  defining LF-Tag keys, resource tag assignments, permission groups, and IAM
+  role bindings.
+- Adds safe permission templates: `reader()`, `editor()`, `table_creator()`,
+  and `database_creator()`.
+- Adds explicit `tag_database()`, `tag_table()`, and `tag_columns()` helpers so
+  generated desired state can cover both LF-Tag assignments and grants.
+- Adds `lfguard generate` for compiling `policy.py` into JSON or YAML desired
+  state, including `--check` for CI drift between source and generated files.
+- Adds optional `lf_tag_key_metadata` to generated desired state so the linter
+  can distinguish whole-table edit/create grants from column-narrowed read
+  grants.
+- Updates bootstrap, examples, README, and docs around the cleaner permission
+  group model.
+- Removes the long `aws-lakeformation-guard` console alias; the installed CLI
+  command is now only `lfguard`.
+
 ## 0.1.1
 
 - Blocks LF-Tag `TABLE` policies that combine `SELECT` with table mutation

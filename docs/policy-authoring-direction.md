@@ -1,225 +1,210 @@
 # Policy Authoring Direction
 
-This is the direction for the next `lfguard` layer. The current package already
-supports low-level desired state, lint, audit, plan, and conservative apply.
-The next layer should make the safe operating model the easiest way to write
-policy.
+`lfguard` should stay small and opinionated. The high-level policy layer should
+make common data governance roles easy to define while keeping dangerous Lake
+Formation combinations out of normal authoring.
 
 ## Decision
 
-Use a Python-native policy builder as the source of truth for opinionated
-permission groups. Generate normal `DesiredState` JSON or YAML from it. Keep
-the generated file reviewable, but do not make users hand-author a large YAML
-permission DSL.
+Use a Python-native policy builder as the source of truth for permission groups.
+Generate normal `DesiredState` JSON or YAML from it.
 
 ```text
-policy.py -> generated desired.yaml -> lfguard check/audit/plan/apply
+policy.py -> generated desired.json -> lfguard check/audit/plan/apply
 ```
 
-This keeps the existing core stable while adding a safer authoring surface.
+Do not build a large YAML DSL. YAML is still useful as the generated review
+artifact, but Python should own the reusable policy logic.
 
-## Core Abstractions
+## Core Concepts
 
 | Concept | Meaning |
 | --- | --- |
-| Tag key | LF-Tag key metadata: values, where it can be assigned, and which access models may use it as a grant filter. |
-| Permission group | Business access intent such as reader, writer, steward, or admin. |
+| Tag key | LF-Tag key, allowed values, and where the tag may be assigned. |
+| Resource tag assignment | Explicit LF-Tag assignment to a database, table, or set of columns. |
+| Permission group | User-defined group name such as `dataconsumer`, `dataengineer`, `datasteward`, `operations`, or `catalog_admin`. |
+| Permission template | Package-defined behavior: `reader()`, `editor()`, `table_creator()`, or `database_creator()`. |
 | IAM role binding | Assignment from an IAM role to one or more permission groups. Treat IAM roles as the execution/user-group boundary. |
 | Generated desired state | The normal `lfguard` desired policy produced by the builder. |
-| Exception | Time-bounded escape hatch with reason, owner, and expiry. |
 
-## Access Models
+Permission group names are not enums. Companies should define their own group
+names. The package only defines the safe behavior templates.
 
-Access models are not just labels. They define allowed permissions and which tag
-filters can be used.
+## Templates
 
-| Access model | Default permissions | Grant filter rules |
-| --- | --- | --- |
-| `Reader` | `SELECT`, `DESCRIBE` | May use table tags and column-narrowing tags such as `contains_pii=false`. |
-| `WholeTableReader` | `SELECT`, `DESCRIBE` | Must use only filters that keep whole-table scope. |
-| `Writer` | Whole-table `SELECT`/`DESCRIBE` plus `INSERT`, `DELETE` | Must not use column-narrowing tag filters. Compiles into an atomic generated grant pair. |
-| `Editor` | `ALTER`, optional write permissions | Must not use column-narrowing tag filters. Requires review because it changes catalog metadata. |
-| `Steward` | tag administration/delegation intent | Separate from data read/write. Requires explicit scope and review. |
-| `Admin` | exceptional administration | Requires an exception or deliberately explicit construction. |
+| Template | Catalog permissions | Database permissions | Table permissions | Filter rule |
+| --- | --- | --- | --- | --- |
+| `reader()` | none | `DESCRIBE` | `SELECT`, `DESCRIBE` | May use tags that can narrow columns. |
+| `editor()` | none | `DESCRIBE` | `SELECT`, `DESCRIBE`, `INSERT`, `DELETE` | Must not use tags assignable to columns. |
+| `table_creator()` | none | `DESCRIBE`, `CREATE_TABLE` | `SELECT`, `DESCRIBE`, `INSERT`, `DELETE` | Must not use tags assignable to columns. |
+| `database_creator()` | `CREATE_DATABASE` | none directly | none directly | Cannot use LF-Tag filters. |
+
+No template grants `ALL`, `SUPER`, `ALTER`, `DROP`, grant option, LF-Tag
+administration, or Lake Formation data lake administrator authority.
+
+`database_creator()` is still powerful. AWS grants `CREATE_DATABASE` on the
+catalog, and database creators receive follow-on metadata authority on
+databases they create. Use a self-describing group name such as
+`catalog_admin` or `database_onboarding`, not a vague shortcut that looks like
+a package-provided `admin()` template.
 
 The hard rule is:
 
 ```text
-Readers may be column-filtered. Writers and editors must stay whole-table.
+reader may be column-filtered
+editor and table_creator must stay whole-table
+database_creator is explicit catalog-level power
 ```
 
-Writers should always have reader capability. The distinction is about the
-generated Lake Formation grants, not the user's effective capability. A writer
-access model should compile to an atomic generated grant pair:
+## Tag Scope
 
-```text
-role/DataPipeline -> pipeline_write
-pipeline_write -> generated whole-table SELECT/DESCRIBE grant
-pipeline_write -> generated INSERT/DELETE grant
-```
-
-Do not express that as one grant containing `SELECT` plus
-`INSERT`/`DELETE`/`ALTER`/`DROP`.
-
-The two generated grants must not become two user-managed policy objects.
-Otherwise drift risk gets larger: a team can accidentally keep the write grant
-and lose the whole-table read grant, or change one expression without changing
-the other. The authoring layer should keep the permission group as the source of
-truth and treat the generated grants as a paired invariant during check, audit,
-plan, and report rendering.
-
-## Tag Key Semantics
-
-Tag keys need two separate kinds of metadata:
-
-- where the tag can be assigned;
-- which access models may use the tag as a grant filter.
-
-For example, `contains_pii` can be assigned to databases, tables, and columns.
-That does not mean it is safe in writer grant filters.
+The tag assignment scope is enough to determine whether a tag can narrow
+columns.
 
 ```python
-from lakeformation_guard.policy import AccessModel, LakePolicy
+from lakeformation_guard.policy import LakePolicy, TagAssignmentScope
 
 policy = LakePolicy()
 
 policy.tag_key(
     "domain",
     values=["sales", "finance", "platform"],
-    assignable_to=["database", "table"],
-    allowed_grant_models=[AccessModel.READER, AccessModel.WHOLE_TABLE_READER, AccessModel.WRITER],
-)
-
-policy.tag_key(
-    "sensitivity",
-    values=["public", "internal", "restricted"],
-    assignable_to=["database", "table", "column"],
-    allowed_grant_models=[AccessModel.READER, AccessModel.WHOLE_TABLE_READER, AccessModel.WRITER],
+    assignable_to=[TagAssignmentScope.DATABASE, TagAssignmentScope.TABLE],
 )
 
 policy.tag_key(
     "contains_pii",
-    values=["true", "false"],
-    assignable_to=["database", "table", "column"],
-    allowed_grant_models=[AccessModel.READER],
+    values=["false", "true"],
+    assignable_to=[
+        TagAssignmentScope.DATABASE,
+        TagAssignmentScope.TABLE,
+        TagAssignmentScope.COLUMN,
+    ],
 )
 ```
 
-`contains_pii` is still valid catalog metadata at any supported level. It is
-blocked only as a writer/editor grant filter because it can narrow access to a
-subset of columns.
+`contains_pii` is valid catalog metadata at database, table, and column scope.
+Because it may be assigned to columns, it can narrow table access to a subset of
+columns. `reader()` may use it. `editor()` and `table_creator()` may not.
+When a reader filter key is also assignable to databases, the builder can use
+that same key for database `DESCRIBE` and table `SELECT`/`DESCRIBE`.
 
-## Generic Authoring Example
+Resource tags use the same scope declaration:
+
+```python
+policy.tag_database("sales_curated", domain="sales", contains_pii="false")
+policy.tag_table("sales_curated", "customers", contains_pii="false")
+policy.tag_columns("sales_curated", "customers", "phone_number", contains_pii="true")
+```
+
+Use mapping form when an LF-Tag key is not a valid Python keyword argument:
+
+```python
+policy.group("dataconsumer", reader().where({"data-domain": "sales"}))
+policy.tag_database("sales_curated", tags={"data-domain": "sales"})
+```
+
+The builder rejects a resource assignment when the tag key is undefined, the
+value is not in the tag definition, or the tag key is not assignable to that
+resource level.
+
+## Generic Example
 
 Use neutral examples in public docs and tests. Avoid company-specific database
 names, role names, and data domains.
 
 ```python
-from lakeformation_guard.policy import LakePolicy, Reader, WholeTableReader, Writer
+from lakeformation_guard.policy import (
+    LakePolicy,
+    TagAssignmentScope,
+    database_creator,
+    editor,
+    reader,
+    table_creator,
+)
 
 policy = LakePolicy()
 
 policy.tag_key(
     "domain",
     values=["sales", "finance", "platform"],
-    assignable_to=["database", "table"],
-    allowed_grant_models=["reader", "whole_table_reader", "writer"],
-)
-policy.tag_key(
-    "sensitivity",
-    values=["public", "internal", "restricted"],
-    assignable_to=["database", "table", "column"],
-    allowed_grant_models=["reader", "whole_table_reader", "writer"],
+    assignable_to=[TagAssignmentScope.DATABASE, TagAssignmentScope.TABLE],
 )
 policy.tag_key(
     "contains_pii",
-    values=["true", "false"],
-    assignable_to=["database", "table", "column"],
-    allowed_grant_models=["reader"],
+    values=["false", "true"],
+    assignable_to=[
+        TagAssignmentScope.DATABASE,
+        TagAssignmentScope.TABLE,
+        TagAssignmentScope.COLUMN,
+    ],
 )
 
-policy.permission_group(
-    "analyst_read",
-    Reader()
-    .where(domain="sales")
-    .where(sensitivity=["public", "internal"])
-    .where(contains_pii="false"),
-)
+policy.tag_database("sales_curated", domain="sales", contains_pii="false")
+policy.tag_table("sales_curated", "customers", contains_pii="false")
+policy.tag_columns("sales_curated", "customers", "phone_number", contains_pii="true")
+policy.tag_database("platform_ops", domain="platform", contains_pii="false")
+policy.tag_table("platform_ops", "jobs", contains_pii="false")
 
-policy.permission_group(
-    "pipeline_write",
-    Writer()
-    .where(domain="sales")
-    .where(sensitivity=["public", "internal", "restricted"]),
-)
+policy.group("dataconsumer", reader().where(domain="sales", contains_pii="false"))
+policy.group("dataengineer", table_creator().where(domain="sales"))
+policy.group("operations", editor().where(domain="platform"))
+policy.group("catalog_admin", database_creator())
 
-policy.bind_role(
-    "arn:aws:iam::111122223333:role/Analyst",
-    ["analyst_read"],
-)
-policy.bind_role(
-    "arn:aws:iam::111122223333:role/DataPipeline",
-    ["pipeline_write"],
-)
+policy.bind_role("arn:aws:iam::111122223333:role/DataConsumer", "dataconsumer")
+policy.bind_role("arn:aws:iam::111122223333:role/DataEngineer", "dataengineer")
+policy.bind_role("arn:aws:iam::111122223333:role/Operations", "operations")
+policy.bind_role("arn:aws:iam::111122223333:role/CatalogAdmin", "catalog_admin")
 
-policy.write_desired("policy/desired.yaml")
+policy.write_desired("policy/desired.json")
 ```
 
-The generated file should include a clear header:
+Or generate through the CLI:
+
+```bash
+lfguard generate policy.py --output-file policy/desired.json
+lfguard generate policy.py --output-file policy/desired.json --check
+lfguard check --desired policy/desired.json --fail-on-findings
+```
+
+Generated YAML includes a header when you choose a `.yaml` or `.yml` output
+file:
 
 ```yaml
 # Generated by policy.py. Do not edit directly.
 ```
 
-## Enforcement Modes
+## Guardrails
 
-The package can support more than one enforcement mode, but the strict mode
-should remain the default for new policy.
+The builder fails before generating desired state when it sees:
 
-| Mode | Purpose | Behavior |
-| --- | --- | --- |
-| `strict` | New controlled-lake policy. | Blocks unsafe patterns and fails CI on warnings when `--fail-on-findings` is used. |
-| `migration` | Moving from console/IAM/table grants toward LF-Tag policy. | Allows selected exceptions only with owner, reason, and expiry. Still blocks known AWS-invalid combinations. |
-| `audit` | Discovery and reporting. | Reports violations without generating apply-ready policy. No destructive actions. |
+- `editor()` or `table_creator()` using a tag key assignable to columns;
+- `database_creator()` with LF-Tag filters;
+- permission groups without tag filters, except `database_creator()`;
+- role bindings to undefined permission groups;
+- tag filters using undefined tag keys or values;
+- resource tag assignments using undefined keys, undefined values, or a scope
+  the tag key does not support;
+- generated desired state that fails `lint_desired()` with errors.
 
-Do not weaken the low-level lints to support migration. Migration should add
-explicit exceptions, not silently make risky policy valid.
-
-## Non-Negotiable Guardrails
-
-The authoring layer should fail before generating desired state when it sees:
-
-- writer/editor/admin models using tag keys that are not allowed for those
-  grant models;
-- any generated LF-Tag `TABLE` grant that combines `SELECT` with `ALTER`,
-  `DELETE`, `DROP`, or `INSERT`;
-- writer access models that fail to generate whole-table `SELECT`/`DESCRIBE`
-  capability alongside write capability;
-- writer generated grant pairs that drift apart by expression, principal,
-  permissions, or source permission group;
-- `ALL` or `SUPER` permissions;
-- broad principals such as `IAMAllowedPrincipals`;
-- admin/editor access without an explicit exception path;
-- expired exceptions;
-- ambiguous wildcard usage where an explicit value list is expected.
-
-The existing `lint_desired()` layer remains the backstop. The builder should
-catch these earlier with clearer errors tied to permission group names.
+The generated desired state writes optional `lf_tag_key_metadata` so the
+low-level linter can distinguish table-wide generated grants from grants that
+may narrow columns. The linter remains conservative for hand-written desired
+state. If it does not have tag assignment metadata, it treats LF-Tag table
+grants that combine `SELECT` with `INSERT`, `DELETE`, `ALTER`, or `DROP` as
+potentially column-filtered and blocks them.
 
 ## Minimal v0.2.0 Scope
 
-The first implementation should stay small:
-
 - `lakeformation_guard.policy` module.
 - `LakePolicy`, `TagKey`, `PermissionGroup`, `RoleBinding`.
-- Access model objects: `Reader`, `WholeTableReader`, `Writer`, `Editor`,
-  `Admin`.
+- `TagAssignmentScope` enum.
+- Templates: `reader()`, `editor()`, `table_creator()`, `database_creator()`.
+- Resource tagging helpers: `tag_database()`, `tag_table()`, `tag_columns()`.
 - `LakePolicy.to_desired_state()`.
 - `LakePolicy.write_desired()`.
-- Validation that writer/editor groups cannot use reader-only tag filters.
-- Validation that generated grants still satisfy `lint_desired()`.
+- Optional LF-Tag assignment metadata in generated desired state.
 - Documentation and tests with generic examples.
 
-Defer UI, SQL analysis, full access explanation, and account-wide discovery.
-Those are useful later, but they are not needed to make the authoring direction
-safe and concrete.
+Defer UI, SQL analysis, full access explanation, account-wide discovery,
+stewardship workflows, and break-glass administration.

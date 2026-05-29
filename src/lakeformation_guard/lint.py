@@ -51,12 +51,22 @@ def lint_desired(desired: DesiredState) -> Tuple[LintFinding, ...]:
         )
 
     tag_values = {tag.key: set(tag.values) for tag in desired.lf_tags}
+    tag_assignment_scopes = {
+        metadata.key: set(metadata.assignable_to)
+        for metadata in desired.lf_tag_key_metadata
+    }
     findings.extend(_lint_lf_tag_definitions(tag_values))
     for assignment in desired.resource_tags:
-        findings.extend(_lint_resource_tag_assignment(assignment, tag_values))
+        findings.extend(
+            _lint_resource_tag_assignment(
+                assignment,
+                tag_values,
+                tag_assignment_scopes,
+            )
+        )
     for grant in desired.grants:
-        findings.extend(_lint_grant(grant, tag_values))
-    findings.extend(_lint_combined_grant_conflicts(desired.grants))
+        findings.extend(_lint_grant(grant, tag_values, tag_assignment_scopes))
+    findings.extend(_lint_combined_grant_conflicts(desired.grants, tag_assignment_scopes))
     return tuple(findings)
 
 
@@ -90,8 +100,23 @@ def _lint_lf_tag_definitions(tag_values: Mapping[str, set]) -> List[LintFinding]
 def _lint_resource_tag_assignment(
     assignment: ResourceTagAssignment,
     tag_values: Mapping[str, set],
+    tag_assignment_scopes: Mapping[str, set],
 ) -> List[LintFinding]:
     findings: List[LintFinding] = []
+    assignment_scope = _resource_tag_assignment_scope(assignment.resource.kind)
+    if assignment_scope is None:
+        findings.append(
+            LintFinding(
+                code="RESOURCE_TAG_KIND_UNSUPPORTED",
+                severity="error",
+                target=assignment.resource.identity,
+                message="LF-Tag assignments are supported only on databases, tables, and columns",
+                details={
+                    "resource": assignment.resource.to_dict(),
+                    "resource_kind": assignment.resource.kind,
+                },
+            )
+        )
     if len(assignment.tags) > 50:
         findings.append(
             LintFinding(
@@ -149,6 +174,26 @@ def _lint_resource_tag_assignment(
                 )
             )
             continue
+        metadata_scopes = tag_assignment_scopes.get(tag_key)
+        if (
+            assignment_scope is not None
+            and metadata_scopes is not None
+            and assignment_scope not in metadata_scopes
+        ):
+            findings.append(
+                LintFinding(
+                    code="RESOURCE_TAG_SCOPE_UNSUPPORTED",
+                    severity="error",
+                    target=assignment.resource.identity,
+                    message="Resource tag assignment uses an LF-Tag key outside its declared assignment scope",
+                    details={
+                        "resource": assignment.resource.to_dict(),
+                        "tag_key": tag_key,
+                        "assignment_scope": assignment_scope,
+                        "assignable_to": sorted(metadata_scopes),
+                    },
+                )
+            )
         undefined_values = sorted(values - tag_values[tag_key])
         if undefined_values:
             findings.append(
@@ -167,8 +212,22 @@ def _lint_resource_tag_assignment(
     return findings
 
 
-def _lint_grant(grant: Grant, tag_values: Mapping[str, set]) -> List[LintFinding]:
-    findings = _lint_grant_governance(grant)
+def _resource_tag_assignment_scope(resource_kind: str) -> Any:
+    if resource_kind == "database":
+        return "database"
+    if resource_kind == "table":
+        return "table"
+    if resource_kind == "table_with_columns":
+        return "column"
+    return None
+
+
+def _lint_grant(
+    grant: Grant,
+    tag_values: Mapping[str, set],
+    tag_assignment_scopes: Mapping[str, set],
+) -> List[LintFinding]:
+    findings = _lint_grant_governance(grant, tag_assignment_scopes)
     if grant.resource.kind != "lf_tag_policy":
         return findings
 
@@ -269,7 +328,10 @@ def _lint_grant(grant: Grant, tag_values: Mapping[str, set]) -> List[LintFinding
     return findings
 
 
-def _lint_grant_governance(grant: Grant) -> List[LintFinding]:
+def _lint_grant_governance(
+    grant: Grant,
+    tag_assignment_scopes: Mapping[str, set],
+) -> List[LintFinding]:
     findings: List[LintFinding] = []
     target = _grant_target(grant)
     principal = _normalize_principal(grant.principal)
@@ -303,7 +365,7 @@ def _lint_grant_governance(grant: Grant) -> List[LintFinding]:
             )
         )
 
-    mutating_permissions = sorted(set(grant.permissions) & MUTATING_PERMISSIONS)
+    mutating_permissions = _mutating_permissions_requiring_review(grant, tag_assignment_scopes)
     if mutating_permissions:
         findings.append(
             LintFinding(
@@ -349,7 +411,11 @@ def _lint_grant_governance(grant: Grant) -> List[LintFinding]:
             )
         )
 
-    if _is_lf_tag_table_policy(grant) and "SELECT" in grant.permissions:
+    if (
+        _is_lf_tag_table_policy(grant)
+        and "SELECT" in grant.permissions
+        and _lf_tag_policy_can_narrow_columns(grant.resource, tag_assignment_scopes)
+    ):
         conflicting_permissions = sorted(set(grant.permissions) & TABLE_MUTATING_PERMISSIONS)
         if conflicting_permissions:
             findings.append(
@@ -390,7 +456,10 @@ def _lint_grant_governance(grant: Grant) -> List[LintFinding]:
     return findings
 
 
-def _lint_combined_grant_conflicts(grants: Tuple[Grant, ...]) -> List[LintFinding]:
+def _lint_combined_grant_conflicts(
+    grants: Tuple[Grant, ...],
+    tag_assignment_scopes: Mapping[str, set],
+) -> List[LintFinding]:
     findings: List[LintFinding] = []
     combined: Dict[Tuple[str, str], Dict[str, Any]] = {}
     for grant in grants:
@@ -414,6 +483,8 @@ def _lint_combined_grant_conflicts(grants: Tuple[Grant, ...]) -> List[LintFindin
             continue
         permissions = entry["permissions"]
         if "SELECT" not in permissions:
+            continue
+        if not _lf_tag_policy_can_narrow_columns(entry["resource"], tag_assignment_scopes):
             continue
         conflicting_permissions = sorted(permissions & TABLE_MUTATING_PERMISSIONS)
         if not conflicting_permissions:
@@ -444,6 +515,43 @@ def _lint_combined_grant_conflicts(grants: Tuple[Grant, ...]) -> List[LintFindin
 
 def _is_lf_tag_table_policy(grant: Grant) -> bool:
     return grant.resource.kind == "lf_tag_policy" and grant.resource.resource_type == "TABLE"
+
+
+def _mutating_permissions_requiring_review(
+    grant: Grant,
+    tag_assignment_scopes: Mapping[str, set],
+) -> List[str]:
+    mutating_permissions = sorted(set(grant.permissions) & MUTATING_PERMISSIONS)
+    if not mutating_permissions:
+        return []
+    if (
+        _is_lf_tag_table_policy(grant)
+        and not _lf_tag_policy_can_narrow_columns(grant.resource, tag_assignment_scopes)
+    ):
+        return sorted(set(mutating_permissions) - {"DELETE", "INSERT"})
+    if (
+        grant.resource.kind == "lf_tag_policy"
+        and grant.resource.resource_type == "DATABASE"
+        and not _lf_tag_policy_can_narrow_columns(grant.resource, tag_assignment_scopes)
+    ):
+        return sorted(set(mutating_permissions) - {"CREATE_TABLE"})
+    return mutating_permissions
+
+
+def _lf_tag_policy_can_narrow_columns(
+    resource: Any,
+    tag_assignment_scopes: Mapping[str, set],
+) -> bool:
+    expression_keys = [item.key for item in resource.expression]
+    if not expression_keys:
+        return True
+    for tag_key in expression_keys:
+        scopes = tag_assignment_scopes.get(tag_key)
+        if scopes is None:
+            return True
+        if "column" in scopes:
+            return True
+    return False
 
 
 def _case_sensitive_values(values: Tuple[str, ...]) -> Tuple[str, ...]:

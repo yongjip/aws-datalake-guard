@@ -1,10 +1,6 @@
 # CLI Reference
 
-`lfguard` installs two console commands:
-
-- `lfguard`: the primary command.
-- `aws-lakeformation-guard`: a descriptive alias for environments that prefer
-  explicit command names.
+`lfguard` installs one console command: `lfguard`.
 
 Use `lfguard --help` or `lfguard <command> --help` for argparse-generated help.
 
@@ -17,10 +13,10 @@ Start with the core workflow:
 3. `plan` shows the conservative change set for review.
 4. `apply` dry-runs by default and executes only with `--execute`.
 
-Everything else is supporting workflow. Use `sample`, `init`, `bootstrap`,
-`schema`, `doctor`, `permissions`, `completion`, `validate`, `lint`, `summary`,
-and `snapshot` when they remove real setup or review friction. They are not the
-reason to adopt the package.
+Everything else is supporting workflow. Use `sample`, `init`, `generate`,
+`bootstrap`, `schema`, `doctor`, `permissions`, `completion`, `validate`,
+`lint`, `summary`, and `snapshot` when they remove real setup or review
+friction. They are not the reason to adopt the package.
 
 ## Command Overview
 
@@ -31,6 +27,7 @@ reason to adopt the package.
 | `plan` | Produce a conservative change plan. | Only when `--current-snapshot` is omitted |
 | `apply` | Dry-run or execute a Lake Formation change plan. | Yes when live state is loaded or `--execute` is used |
 | `init` | Generate a starter desired-state policy file. | No |
+| `generate` | Generate desired state from a Python policy file. | No |
 | `bootstrap` | Create a starter policy repository layout with CI and pre-commit files. | No |
 | `sample` | Generate offline demo desired/current state files. | No |
 | `schema` | Emit the JSON Schema for desired/current state files. | No |
@@ -120,6 +117,51 @@ stdout defaults to JSON.
 lfguard init --template blank --output-file policy/desired.json
 ```
 
+## `generate`
+
+Generate desired state from a Python policy file:
+
+```bash
+lfguard generate policy.py --output-file policy/desired.json
+lfguard generate policy.py --output-file policy/desired.json --check
+lfguard check --desired policy/desired.json --fail-on-findings
+```
+
+The policy file should define a `LakePolicy` named `policy`:
+
+```python
+from lakeformation_guard.policy import LakePolicy, TagAssignmentScope, reader, table_creator
+
+policy = LakePolicy()
+policy.tag_key(
+    "domain",
+    values=["sales", "finance"],
+    assignable_to=[TagAssignmentScope.DATABASE, TagAssignmentScope.TABLE],
+)
+policy.tag_database("sales_curated", domain="sales")
+policy.tag_table("sales_curated", "customers", domain="sales")
+policy.group("dataconsumer", reader().where(domain="sales"))
+policy.group("dataengineer", table_creator().where(domain="sales"))
+```
+
+Use mapping form for LF-Tag keys that cannot be Python keyword arguments:
+
+```python
+policy.group("dataconsumer", reader().where({"data-domain": "sales"}))
+policy.tag_table("sales_curated", "customers", tags={"data-domain": "sales"})
+```
+
+Useful options:
+
+- `policy.py`: Python file to load.
+- `--object NAME`: load a different object or zero-argument factory. Defaults
+  to `policy`.
+- `--output-file PATH`: write generated desired state to a file.
+- `--format json|yaml`: force the generated output format.
+- `--check`: fail if the output file does not match the generated desired
+  state. Use this in CI to keep `policy.py` and `policy/desired.*` in sync.
+- `--force`: overwrite an existing output file.
+
 ## `bootstrap`
 
 Create a starter policy repository layout:
@@ -130,18 +172,20 @@ lfguard bootstrap --output-dir lfguard-policy
 
 The generated layout includes:
 
-- `policy/desired.json`: starter desired LF-Tag and grant policy.
+- `policy.py`: Python source of truth for permission groups.
+- `policy/desired.json`: generated desired LF-Tag and grant policy.
 - `policy/lfguard.schema.json`: JSON Schema for editor integration.
 - `.github/workflows/lfguard-policy.yml`: offline check, summary, and artifact
-  workflow.
-- `.pre-commit-config.yaml`: local check hook.
+  workflow. It runs `lfguard generate` before `lfguard check`.
+- `.pre-commit-config.yaml`: local generate-and-check hook.
 - `README.md`: rollout steps and first commands.
 
 Useful options:
 
 - `--format json|yaml`: choose the desired policy file format. YAML workflows
   install `lfguard[yaml]`.
-- `--template data-domain|blank`: choose the starter policy.
+- `--template data-domain|blank`: choose the starter policy. `data-domain`
+  writes a Python permission-group policy; `blank` writes an empty `LakePolicy`.
 - `--include-live-drift`: also write `.github/workflows/lfguard-live-drift.yml`
   and `iam/lfguard-read-only.json` for scheduled live AWS drift checks through
   GitHub OIDC.
@@ -421,7 +465,7 @@ policy:
 
 ```bash
 lfguard snapshot \
-  --desired policy/desired.yaml \
+  --desired policy/desired.json \
   --profile prod \
   --region ap-northeast-2 \
   --output-file snapshots/prod-current.json
@@ -436,7 +480,7 @@ Dry-run by default:
 
 ```bash
 lfguard apply \
-  --desired policy/desired.yaml \
+  --desired policy/desired.json \
   --profile prod \
   --region ap-northeast-2
 ```
@@ -445,7 +489,7 @@ Save the dry-run report:
 
 ```bash
 lfguard apply \
-  --desired policy/desired.yaml \
+  --desired policy/desired.json \
   --profile prod \
   --region ap-northeast-2 \
   --output markdown \
@@ -456,7 +500,7 @@ Execute additive changes:
 
 ```bash
 lfguard apply \
-  --desired policy/desired.yaml \
+  --desired policy/desired.json \
   --profile prod \
   --region ap-northeast-2 \
   --execute
@@ -466,7 +510,7 @@ Save executed results:
 
 ```bash
 lfguard apply \
-  --desired policy/desired.yaml \
+  --desired policy/desired.json \
   --profile prod \
   --region ap-northeast-2 \
   --execute \

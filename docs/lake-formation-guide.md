@@ -86,9 +86,8 @@ named versus LF-TBAC grant behavior, and permission/resource combinations, see
 - Keep revokes and removals in a separate destructive maintenance workflow.
 - Prefer LF-Tag policy grants for databases and tables. Keep named grants as
   documented exceptions.
-- Keep LF-Tag table read policies separate from writer/admin policies. A tag
-  expression used for `SELECT` should usually grant only `SELECT` and
-  `DESCRIBE`.
+- Keep column-filtered read policies separate from edit/create policies. A tag
+  expression that can narrow columns should grant only `SELECT` and `DESCRIBE`.
 - Avoid `ALL` or `SUPER`; grant the smallest Lake Formation permission set that
   supports the workload.
 - Keep grant option rare. Delegation changes the access-control owner and should
@@ -133,12 +132,16 @@ named versus LF-TBAC grant behavior, and permission/resource combinations, see
 ## Simple Rollout
 
 1. Run `lfguard sample --output-dir lfguard-demo` and inspect the plan output.
-2. Draft `policy/desired.json` with a small LF-Tag vocabulary.
-3. Run `lfguard check --desired policy/desired.json --fail-on-findings`.
-4. Capture a scoped non-production snapshot with `lfguard snapshot`.
-5. Run `lfguard audit` and `lfguard plan` from that snapshot in CI.
-6. Apply additive changes only after reviewing the plan.
-7. Move revokes and tag removals to a separate approved workflow.
+2. Run `lfguard bootstrap --output-dir lfguard-policy` to create `policy.py`
+   and generated `policy/desired.json`.
+3. Replace the example LF-Tag vocabulary, tag assignments, permission groups,
+   and role bindings in `policy.py`.
+4. Run `lfguard generate policy.py --output-file policy/desired.json --force`.
+5. Run `lfguard check --desired policy/desired.json --fail-on-findings`.
+6. Capture a scoped non-production snapshot with `lfguard snapshot`.
+7. Run `lfguard audit` and `lfguard plan` from that snapshot in CI.
+8. Apply additive changes only after reviewing the plan.
+9. Move revokes and tag removals to a separate approved workflow.
 
 Start with the smallest workflow that answers today's question:
 
