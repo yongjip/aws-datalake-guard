@@ -36,8 +36,8 @@ filters can be used.
 | Access model | Default permissions | Grant filter rules |
 | --- | --- | --- |
 | `Reader` | `SELECT`, `DESCRIBE` | May use table tags and column-narrowing tags such as `contains_pii=false`. |
-| `WholeTableReader` | `SELECT`, `DESCRIBE` | Must use only filters that keep whole-table scope. Useful when a writer also needs full-table read. |
-| `Writer` | `INSERT`, `DELETE` | Must not use column-narrowing tag filters. Does not include `SELECT`. |
+| `WholeTableReader` | `SELECT`, `DESCRIBE` | Must use only filters that keep whole-table scope. |
+| `Writer` | Whole-table `SELECT`/`DESCRIBE` plus `INSERT`, `DELETE` | Must not use column-narrowing tag filters. Compiles into separate read and write grants. |
 | `Editor` | `ALTER`, optional write permissions | Must not use column-narrowing tag filters. Requires review because it changes catalog metadata. |
 | `Steward` | tag administration/delegation intent | Separate from data read/write. Requires explicit scope and review. |
 | `Admin` | exceptional administration | Requires an exception or deliberately explicit construction. |
@@ -48,10 +48,14 @@ The hard rule is:
 Readers may be column-filtered. Writers and editors must stay whole-table.
 ```
 
-If a workload needs both read and write, bind the role to separate groups:
+Writers should always have reader capability. The distinction is about the
+generated Lake Formation grants, not the user's effective capability. A writer
+access model should compile to separate whole-table read and write grants:
 
 ```text
-role/DataPipeline -> whole_table_reader + writer
+role/DataPipeline -> pipeline_write
+pipeline_write -> whole-table SELECT/DESCRIBE grant
+pipeline_write -> INSERT/DELETE grant
 ```
 
 Do not express that as one grant containing `SELECT` plus
@@ -136,13 +140,6 @@ policy.permission_group(
 )
 
 policy.permission_group(
-    "pipeline_table_read",
-    WholeTableReader()
-    .where(domain="sales")
-    .where(sensitivity=["public", "internal", "restricted"]),
-)
-
-policy.permission_group(
     "pipeline_write",
     Writer()
     .where(domain="sales")
@@ -155,7 +152,7 @@ policy.bind_role(
 )
 policy.bind_role(
     "arn:aws:iam::111122223333:role/DataPipeline",
-    ["pipeline_table_read", "pipeline_write"],
+    ["pipeline_write"],
 )
 
 policy.write_desired("policy/desired.yaml")
@@ -189,6 +186,8 @@ The authoring layer should fail before generating desired state when it sees:
   grant models;
 - any generated LF-Tag `TABLE` grant that combines `SELECT` with `ALTER`,
   `DELETE`, `DROP`, or `INSERT`;
+- writer access models that fail to generate whole-table `SELECT`/`DESCRIBE`
+  capability alongside write capability;
 - `ALL` or `SUPER` permissions;
 - broad principals such as `IAMAllowedPrincipals`;
 - admin/editor access without an explicit exception path;

@@ -72,11 +72,13 @@ Use separate roles and workflows:
 - Destructive maintenance role: execute revokes and removals only during
   scheduled governance maintenance with explicit approval.
 
-For authoring, keep reader and writer intent separate. Reader permission groups
-may use column-narrowing filters such as `contains_pii=false` when they grant
-only `SELECT` and `DESCRIBE`. Writer and editor groups must stay whole-table and
-must not use column-narrowing filters. If a workload needs both full-table read
-and write, bind the IAM role to separate whole-table reader and writer groups.
+For authoring, keep column-filtered reader intent separate from writer intent.
+Reader permission groups may use column-narrowing filters such as
+`contains_pii=false` when they grant only `SELECT` and `DESCRIBE`. Writer groups
+should always provide reader capability too, but it must be whole-table reader
+capability. The authoring layer should compile writer intent into separate
+whole-table `SELECT`/`DESCRIBE` and write grants instead of one Lake Formation
+grant that mixes `SELECT` with `INSERT`, `DELETE`, `ALTER`, or `DROP`.
 
 Store desired state in source control. Store generated snapshots and reports
 according to your organization's data classification rules because they may
