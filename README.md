@@ -303,7 +303,9 @@ not turn destructive changes on by default.
 
 The repository includes GitHub Actions for CI and PyPI Trusted Publishing. See
 [`docs/publishing.md`](docs/publishing.md) for the release path and the exact
-PyPI publisher settings. The first release notes are in
+PyPI publisher settings. The latest patch release notes are in
+[`docs/release-notes/v0.1.1.md`](docs/release-notes/v0.1.1.md), and the first
+public release notes remain in
 [`docs/release-notes/v0.1.0.md`](docs/release-notes/v0.1.0.md).
 
 ## More docs

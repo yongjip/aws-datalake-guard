@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.1
 
 - Blocks LF-Tag `TABLE` policies that combine `SELECT` with table mutation
   permissions, preventing Lake Formation partial-column `SELECT` illegal
