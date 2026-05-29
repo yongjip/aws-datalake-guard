@@ -37,7 +37,7 @@ filters can be used.
 | --- | --- | --- |
 | `Reader` | `SELECT`, `DESCRIBE` | May use table tags and column-narrowing tags such as `contains_pii=false`. |
 | `WholeTableReader` | `SELECT`, `DESCRIBE` | Must use only filters that keep whole-table scope. |
-| `Writer` | Whole-table `SELECT`/`DESCRIBE` plus `INSERT`, `DELETE` | Must not use column-narrowing tag filters. Compiles into separate read and write grants. |
+| `Writer` | Whole-table `SELECT`/`DESCRIBE` plus `INSERT`, `DELETE` | Must not use column-narrowing tag filters. Compiles into an atomic generated grant pair. |
 | `Editor` | `ALTER`, optional write permissions | Must not use column-narrowing tag filters. Requires review because it changes catalog metadata. |
 | `Steward` | tag administration/delegation intent | Separate from data read/write. Requires explicit scope and review. |
 | `Admin` | exceptional administration | Requires an exception or deliberately explicit construction. |
@@ -50,16 +50,23 @@ Readers may be column-filtered. Writers and editors must stay whole-table.
 
 Writers should always have reader capability. The distinction is about the
 generated Lake Formation grants, not the user's effective capability. A writer
-access model should compile to separate whole-table read and write grants:
+access model should compile to an atomic generated grant pair:
 
 ```text
 role/DataPipeline -> pipeline_write
-pipeline_write -> whole-table SELECT/DESCRIBE grant
-pipeline_write -> INSERT/DELETE grant
+pipeline_write -> generated whole-table SELECT/DESCRIBE grant
+pipeline_write -> generated INSERT/DELETE grant
 ```
 
 Do not express that as one grant containing `SELECT` plus
 `INSERT`/`DELETE`/`ALTER`/`DROP`.
+
+The two generated grants must not become two user-managed policy objects.
+Otherwise drift risk gets larger: a team can accidentally keep the write grant
+and lose the whole-table read grant, or change one expression without changing
+the other. The authoring layer should keep the permission group as the source of
+truth and treat the generated grants as a paired invariant during check, audit,
+plan, and report rendering.
 
 ## Tag Key Semantics
 
@@ -188,6 +195,8 @@ The authoring layer should fail before generating desired state when it sees:
   `DELETE`, `DROP`, or `INSERT`;
 - writer access models that fail to generate whole-table `SELECT`/`DESCRIBE`
   capability alongside write capability;
+- writer generated grant pairs that drift apart by expression, principal,
+  permissions, or source permission group;
 - `ALL` or `SUPER` permissions;
 - broad principals such as `IAMAllowedPrincipals`;
 - admin/editor access without an explicit exception path;
