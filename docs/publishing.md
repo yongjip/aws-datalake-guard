@@ -16,12 +16,17 @@ Configure a pending publisher in PyPI with:
 - Workflow: `release.yml`
 - Environment: `pypi`
 
-Then publish a GitHub release for a tag such as `v0.2.0`. The release workflow
-first verifies that the release tag matches the package version, builds the
-artifacts, verifies distribution filenames and embedded metadata, checks them,
-smoke-tests the built wheel through an installed `lfguard` CLI, uploads to PyPI
-through OIDC, then installs `lfguard` back from PyPI and smoke-tests the
-published package.
+Then publish by pushing a version tag such as `v0.2.0`, or by publishing a
+GitHub Release for that tag. The release workflow first verifies that the tag
+matches the package version, builds the artifacts, verifies distribution
+filenames and embedded metadata, checks them, smoke-tests the built wheel
+through an installed `lfguard` CLI, uploads to PyPI through OIDC, then installs
+`lfguard` back from PyPI and smoke-tests the published package.
+
+```bash
+git tag v0.2.0
+git push origin v0.2.0
+```
 
 Use the matching file under [`release-notes/`](release-notes/) as the GitHub
 release body.

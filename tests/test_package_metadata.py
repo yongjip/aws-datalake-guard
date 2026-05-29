@@ -111,6 +111,8 @@ class PackageMetadataTests(unittest.TestCase):
         workflow = (self.root / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
 
         self.assertIn("Validate release tag", workflow)
+        self.assertIn("tags:", workflow)
+        self.assertIn('"v*"', workflow)
         self.assertIn("package_version=", workflow)
         self.assertIn("release_version=", workflow)
         self.assertIn("Verify distribution versions", workflow)
@@ -119,7 +121,10 @@ class PackageMetadataTests(unittest.TestCase):
         self.assertIn("lfguard-{}/PKG-INFO", workflow)
         self.assertIn("verify-pypi:", workflow)
         self.assertIn("needs: publish", workflow)
-        self.assertIn("RELEASE_TAG: ${{ github.event.release.tag_name }}", workflow)
+        self.assertIn(
+            "RELEASE_TAG: ${{ github.event.release.tag_name || github.ref_name }}",
+            workflow,
+        )
         self.assertIn('python -m pip install --no-cache-dir "lfguard==${version}"', workflow)
         self.assertIn('test "$(lfguard --version)" = "lfguard ${version}"', workflow)
         self.assertIn("sleep 15", workflow)
