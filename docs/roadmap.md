@@ -21,6 +21,11 @@ The first release focuses on the core guardrail loop:
 
 The most useful next improvements are:
 
+- Add a Python-native permission group authoring layer that compiles to normal
+  desired state while enforcing reader, whole-table reader, writer, editor, and
+  admin access models.
+- Add strict, migration, and audit enforcement modes without weakening the
+  default strict guardrails.
 - More real-world examples for LF-Tag policy grants, table-with-columns grants,
   and data location permissions.
 - Better validation messages that point directly at the problematic field in a
@@ -41,6 +46,8 @@ Before widening the supported surface, `lfguard` should collect feedback on:
 - Which CI outputs are most useful for reviewers.
 - How teams want to separate additive changes from destructive maintenance.
 - Whether the Python API should expose more structured report helpers.
+- Whether the permission group builder catches unsafe policy earlier and more
+  clearly than raw desired-state lint alone.
 
 ## Non-Goals
 

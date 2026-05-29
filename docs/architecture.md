@@ -24,6 +24,12 @@ pure audit and planning functions, and an optional boto3 adapter.
 - `lakeformation_guard.schema` provides the JSON Schema used by the `schema`
   command and editor or CI validation.
 
+The planned `lakeformation_guard.policy` module should sit above these
+boundaries, not replace them. It should compile Python-native permission groups,
+tag-key metadata, access models, and IAM role bindings into the existing
+`DesiredState` model. The generated desired state should still pass the same
+schema, lint, audit, plan, and apply workflow as hand-authored JSON or YAML.
+
 ## Data Flow
 
 Most workflows follow the same path:
@@ -81,6 +87,12 @@ from lakeformation_guard import CurrentState, DesiredState, PlanOptions, audit, 
 Use `lakeformation_guard.aws.AWSLakeFormationAdapter` only for live inventory or
 apply workflows. Internal helper functions and CLI rendering helpers are not
 part of the stable public API.
+
+The next public API should add a narrow authoring layer, likely under
+`lakeformation_guard.policy`, for teams that want rigid permission groups
+instead of raw grants. See
+[`policy-authoring-direction.md`](policy-authoring-direction.md) for the
+direction and constraints.
 
 ## Extension Points
 

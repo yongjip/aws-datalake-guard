@@ -322,6 +322,9 @@ public release notes remain in
 - [`docs/tag-permission-matrix.md`](docs/tag-permission-matrix.md): effective
   LF-Tag inheritance, expression matching, grant shapes, column override cases,
   and permission/resource combinations.
+- [`docs/policy-authoring-direction.md`](docs/policy-authoring-direction.md):
+  planned Python-native permission group authoring layer, access models, and
+  strict/migration/audit modes.
 - [`docs/report-formats.md`](docs/report-formats.md): JSON and Markdown report
   shapes for audits, plans, applies, and CI artifacts.
 - [`docs/architecture.md`](docs/architecture.md): package boundaries, data
