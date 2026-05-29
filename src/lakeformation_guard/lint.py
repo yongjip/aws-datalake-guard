@@ -11,6 +11,7 @@ from .models import DesiredState, Grant, ResourceTagAssignment
 BROAD_PRINCIPALS = {"alliamprincipals", "iamallowedprincipals", "iam_allowed_principals"}
 BROAD_PERMISSIONS = {"ALL", "SUPER"}
 MUTATING_PERMISSIONS = {"ALTER", "CREATE_TABLE", "DELETE", "DROP", "INSERT"}
+TABLE_MUTATING_PERMISSIONS = {"ALTER", "DELETE", "DROP", "INSERT"}
 NAMED_GRANT_RESOURCE_KINDS = {"database", "table", "table_with_columns"}
 
 
@@ -55,6 +56,7 @@ def lint_desired(desired: DesiredState) -> Tuple[LintFinding, ...]:
         findings.extend(_lint_resource_tag_assignment(assignment, tag_values))
     for grant in desired.grants:
         findings.extend(_lint_grant(grant, tag_values))
+    findings.extend(_lint_combined_grant_conflicts(desired.grants))
     return tuple(findings)
 
 
@@ -347,7 +349,101 @@ def _lint_grant_governance(grant: Grant) -> List[LintFinding]:
             )
         )
 
+    if _is_lf_tag_table_policy(grant) and "SELECT" in grant.permissions:
+        conflicting_permissions = sorted(set(grant.permissions) & TABLE_MUTATING_PERMISSIONS)
+        if conflicting_permissions:
+            findings.append(
+                LintFinding(
+                    code="LF_TAG_POLICY_TABLE_SELECT_MUTATION_CONFLICT",
+                    severity="error",
+                    target=target,
+                    message=(
+                        "LF-Tag table policy grants must not combine SELECT with table mutation permissions"
+                    ),
+                    details={
+                        "principal": grant.principal,
+                        "resource": grant.resource.to_dict(),
+                        "conflicting_permissions": conflicting_permissions,
+                    },
+                )
+            )
+
+    if grant.resource.kind == "table_with_columns":
+        conflicting_permissions = sorted(set(grant.permissions) & TABLE_MUTATING_PERMISSIONS)
+        if conflicting_permissions:
+            findings.append(
+                LintFinding(
+                    code="COLUMN_FILTER_MUTATING_PERMISSION_CONFLICT",
+                    severity="error",
+                    target=target,
+                    message=(
+                        "Column-filtered grants must not include table mutation permissions"
+                    ),
+                    details={
+                        "principal": grant.principal,
+                        "resource": grant.resource.to_dict(),
+                        "conflicting_permissions": conflicting_permissions,
+                    },
+                )
+            )
+
     return findings
+
+
+def _lint_combined_grant_conflicts(grants: Tuple[Grant, ...]) -> List[LintFinding]:
+    findings: List[LintFinding] = []
+    combined: Dict[Tuple[str, str], Dict[str, Any]] = {}
+    for grant in grants:
+        if not _is_lf_tag_table_policy(grant):
+            continue
+        key = (grant.principal, grant.resource.identity)
+        entry = combined.setdefault(
+            key,
+            {
+                "principal": grant.principal,
+                "resource": grant.resource,
+                "permissions": set(),
+                "grant_count": 0,
+            },
+        )
+        entry["permissions"].update(grant.permissions)
+        entry["grant_count"] += 1
+
+    for entry in combined.values():
+        if entry["grant_count"] < 2:
+            continue
+        permissions = entry["permissions"]
+        if "SELECT" not in permissions:
+            continue
+        conflicting_permissions = sorted(permissions & TABLE_MUTATING_PERMISSIONS)
+        if not conflicting_permissions:
+            continue
+        grant = Grant(
+            principal=entry["principal"],
+            resource=entry["resource"],
+            permissions=tuple(sorted(permissions)),
+        )
+        target = _grant_target(grant)
+        findings.append(
+            LintFinding(
+                code="LF_TAG_POLICY_COMBINED_TABLE_SELECT_MUTATION_CONFLICT",
+                severity="error",
+                target=target,
+                message=(
+                    "Separate grants for the same LF-Tag table policy combine SELECT with table mutation permissions"
+                ),
+                details={
+                    "principal": grant.principal,
+                    "resource": grant.resource.to_dict(),
+                    "conflicting_permissions": conflicting_permissions,
+                },
+            )
+        )
+    return findings
+
+
+def _is_lf_tag_table_policy(grant: Grant) -> bool:
+    return grant.resource.kind == "lf_tag_policy" and grant.resource.resource_type == "TABLE"
 
 
 def _case_sensitive_values(values: Tuple[str, ...]) -> Tuple[str, ...]:

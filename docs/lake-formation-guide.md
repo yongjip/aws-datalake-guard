@@ -86,6 +86,9 @@ named versus LF-TBAC grant behavior, and permission/resource combinations, see
 - Keep revokes and removals in a separate destructive maintenance workflow.
 - Prefer LF-Tag policy grants for databases and tables. Keep named grants as
   documented exceptions.
+- Keep LF-Tag table read policies separate from writer/admin policies. A tag
+  expression used for `SELECT` should usually grant only `SELECT` and
+  `DESCRIBE`.
 - Avoid `ALL` or `SUPER`; grant the smallest Lake Formation permission set that
   supports the workload.
 - Keep grant option rare. Delegation changes the access-control owner and should
@@ -109,6 +112,10 @@ named versus LF-TBAC grant behavior, and permission/resource combinations, see
 - Granting `ALL` or `SUPER` instead of explicit permissions.
 - Letting routine read workflows include `ALTER`, `CREATE_TABLE`, `DELETE`,
   `DROP`, or `INSERT`.
+- Combining `SELECT` with `ALTER`, `DELETE`, `DROP`, or `INSERT` on the same
+  LF-Tag `TABLE` policy. Column tag overrides can turn the read side into
+  partial-column `SELECT`, which Lake Formation does not allow with table
+  mutation permissions.
 - Using grant option as a convenience instead of an explicit delegation review.
 - Relying on named database/table grants as the normal pattern when LF-Tag
   policy grants would express the access rule.
@@ -143,6 +150,7 @@ Start with the smallest workflow that answers today's question:
 
 `lfguard check --fail-on-findings` is intentionally strict. It can block broad
 principals, `ALL`/`SUPER`, mixed-case LF-Tags, multi-value resource tags,
+LF-Tag table policies that mix `SELECT` with table mutation permissions,
 grant-option delegation, wildcard LF-Tag policies, mutating permissions, and
 named database/table grants that should be reviewed as exceptions.
 

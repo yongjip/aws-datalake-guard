@@ -143,6 +143,8 @@ class DocumentationExampleTests(unittest.TestCase):
             "Grant Option",
             "Controlled-Lake Guardrails",
             "`ALL`/`SUPER` permissions",
+            "LF-Tag `TABLE` policies that combine",
+            "illegal permission combinations this project blocks",
             "Same key: table `k=a`, column `k=b`",
             "Named and LF-TBAC grants union together",
             "`k=a` | `k=b` | `k=c`",

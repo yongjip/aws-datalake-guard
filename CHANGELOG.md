@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Blocks LF-Tag `TABLE` policies that combine `SELECT` with table mutation
+  permissions, preventing Lake Formation partial-column `SELECT` illegal
+  permission combinations before apply.
+
 ## 0.1.0
 
 - Initial release of `lfguard`.

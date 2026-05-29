@@ -132,7 +132,7 @@ Assume table `orders` has columns `id`, `amount`, and `email`.
 | Table has `sensitivity=internal`; column `email` has `sensitivity=restricted`. | `SELECT` on `sensitivity=internal` | Principal can select `id` and `amount`, not `email`. |
 | Same table and column tags. | `SELECT` on `sensitivity=restricted` | Principal can select `email` only. |
 | Same table and column tags. | `DESCRIBE` on `sensitivity=restricted` | Principal can see matching column metadata, subject to the calling service's metadata behavior. |
-| Same table and column tags. | `ALTER`, `DROP`, `INSERT`, or `DELETE` through only the restricted column match | AWS does not grant those full-table permissions from a partial-column LF-Tag match; only `DESCRIBE` is granted. |
+| Same table and column tags. | `ALTER`, `DROP`, `INSERT`, or `DELETE` through only the restricted column match | AWS does not grant those full-table permissions from a partial-column LF-Tag match; only `DESCRIBE` is granted. `lfguard` blocks LF-Tag table policies that combine `SELECT` with these permissions. |
 | Same table and column tags. | `ALL`/`SUPER` through only the restricted column match | AWS reduces the effective LF-TBAC result to `SELECT` and `DESCRIBE` for the matching subset. `lfguard` still blocks `ALL`/`SUPER` in desired policy. |
 | Table has `domain=sales`; column `email` has `sensitivity=restricted`. | `SELECT` on `domain=sales AND sensitivity=restricted` | Matches `email` only if the column also effectively has `domain=sales` through inheritance. |
 | Table has `domain=sales`; column `email` has `domain=privacy`. | `SELECT` on `domain=sales` | Does not match `email`; the column override changes the effective value for that key. |
@@ -225,7 +225,15 @@ option when column filtering is applied.
 `lfguard lint` is intentionally opinionated. It reports errors for policy that
 does not behave cleanly in AWS, such as mixed-case LF-Tags, multiple values for
 one key on a resource, broad `IAMAllowedPrincipals` or `ALLIAMPrincipals`
-grants, and `ALL`/`SUPER` permissions.
+grants, `ALL`/`SUPER` permissions, and LF-Tag `TABLE` policies that combine
+`SELECT` with `ALTER`, `DROP`, `DELETE`, or `INSERT`.
+
+That last rule is deliberately preventive. If a table has
+`sensitivity=internal` and one column such as `phonenumber` overrides the same
+key to `sensitivity=confidential`, an `internal` LF-Tag grant with `SELECT` can
+become partial-column `SELECT`. Combining that with table-level mutation
+permissions for the same LF-Tag policy creates the partial-column `SELECT`
+illegal permission combinations this project blocks before apply.
 
 It reports warnings for policy that can be valid but should be reviewed as an
 exception: wildcard LF-Tag policy values, mutating permissions, grant option,
@@ -245,6 +253,8 @@ controlled database permission model.
 - Is `*` used only when all values for a key are truly intended?
 - Are partial-column `SELECT` grants kept separate from table-level mutation
   permissions?
+- Are LF-Tag `TABLE` policies split so read tags get only `SELECT`/`DESCRIBE`
+  and writer/admin tags carry `INSERT`, `DELETE`, `ALTER`, or `DROP`?
 - Are destructive operations and grant-option delegation reviewed separately?
 
 ## Source References

@@ -62,8 +62,9 @@ conservative apply.
 
 `lfguard check --fail-on-findings` is deliberately rigid: it blocks undefined
 tags, mixed-case LF-Tags, multiple values for one key on a resource, broad
-principals, `ALL`/`SUPER`, and other patterns that make a lake harder to govern
-like a controlled database.
+principals, `ALL`/`SUPER`, LF-Tag table policies that mix `SELECT` with
+`ALTER`/`DELETE`/`DROP`/`INSERT`, and other patterns that make a lake harder to
+govern like a controlled database.
 
 ## Common use cases
 

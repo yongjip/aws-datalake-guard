@@ -1489,6 +1489,65 @@ class AuditCliTests(unittest.TestCase):
             {"BROAD_PRINCIPAL_GRANT", "BROAD_PERMISSION_GRANT"},
         )
 
+    def test_lint_desired_api_blocks_partial_column_permission_conflicts(self):
+        desired = DesiredState.from_dict(
+            {
+                "lf_tags": {"sensitivity": ["internal"]},
+                "resource_tags": [],
+                "grants": [
+                    {
+                        "principal": "arn:aws:iam::111122223333:role/MwaaExecution",
+                        "resource": {
+                            "kind": "lf_tag_policy",
+                            "resource_type": "TABLE",
+                            "expression": {"sensitivity": ["internal"]},
+                        },
+                        "permissions": ["SELECT", "DELETE", "INSERT"],
+                    },
+                    {
+                        "principal": "arn:aws:iam::111122223333:role/SplitPolicy",
+                        "resource": {
+                            "kind": "lf_tag_policy",
+                            "resource_type": "TABLE",
+                            "expression": {"sensitivity": ["internal"]},
+                        },
+                        "permissions": ["SELECT"],
+                    },
+                    {
+                        "principal": "arn:aws:iam::111122223333:role/SplitPolicy",
+                        "resource": {
+                            "kind": "lf_tag_policy",
+                            "resource_type": "TABLE",
+                            "expression": {"sensitivity": ["internal"]},
+                        },
+                        "permissions": ["INSERT"],
+                    },
+                    {
+                        "principal": "arn:aws:iam::111122223333:role/ColumnWriter",
+                        "resource": {
+                            "kind": "table_with_columns",
+                            "database": "analytics",
+                            "table": "users",
+                            "columns": ["login_id"],
+                        },
+                        "permissions": ["SELECT", "DELETE"],
+                    },
+                ],
+            }
+        )
+
+        findings = lint_desired(desired)
+        findings_by_code = {finding.code: finding for finding in findings}
+
+        self.assertIn("LF_TAG_POLICY_TABLE_SELECT_MUTATION_CONFLICT", findings_by_code)
+        self.assertIn("LF_TAG_POLICY_COMBINED_TABLE_SELECT_MUTATION_CONFLICT", findings_by_code)
+        self.assertIn("COLUMN_FILTER_MUTATING_PERMISSION_CONFLICT", findings_by_code)
+        self.assertEqual(findings_by_code["LF_TAG_POLICY_TABLE_SELECT_MUTATION_CONFLICT"].severity, "error")
+        self.assertEqual(
+            findings_by_code["LF_TAG_POLICY_TABLE_SELECT_MUTATION_CONFLICT"].details["conflicting_permissions"],
+            ["DELETE", "INSERT"],
+        )
+
     def test_cli_lint_outputs_json_and_can_fail_on_findings(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
