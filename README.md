@@ -371,7 +371,7 @@ not turn destructive changes on by default.
 The repository includes GitHub Actions for CI and PyPI Trusted Publishing. See
 [`docs/publishing.md`](docs/publishing.md) for the release path and the exact
 PyPI publisher settings. The latest release notes are in
-[`docs/release-notes/v0.2.0.md`](docs/release-notes/v0.2.0.md), with prior
+[`docs/release-notes/v0.2.1.md`](docs/release-notes/v0.2.1.md), with prior
 release notes under [`docs/release-notes/`](docs/release-notes/).
 
 ## More docs
@@ -416,6 +416,8 @@ release notes under [`docs/release-notes/`](docs/release-notes/).
   uploaded report artifacts.
 - [`docs/aws-permissions.md`](docs/aws-permissions.md): suggested minimum IAM
   permissions for read-only and apply roles.
+- [`docs/testing.md`](docs/testing.md): default tests, botocore Stubber
+  contract tests, Moto emulator tests, and opt-in live AWS contract tests.
 - [`examples/README.md`](examples/README.md): offline files, commands,
   copyable GitHub Actions workflows, and a pre-commit hook example.
 
@@ -426,3 +428,7 @@ python -m pip install -e ".[dev,aws,yaml]"
 python -m unittest discover -s tests
 python -m build
 ```
+
+See [`docs/testing.md`](docs/testing.md) for the layered test strategy:
+botocore `Stubber` contract tests, optional Moto emulator tests, and opt-in
+live AWS contract tests for Lake Formation behavior that emulators cannot prove.

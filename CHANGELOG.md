@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.1
+
+- Adds botocore `Stubber` contract tests for the Lake Formation adapter so AWS
+  request shapes are validated against the botocore service model in the
+  default test suite.
+- Adds an optional Moto-backed emulator suite for small Lake Formation adapter
+  round trips.
+- Adds opt-in live AWS contract tests for Lake Formation behaviors local
+  emulators cannot prove, including LF-Tag column overrides and invalid
+  permission-combination enforcement.
+- Adds testing documentation and a dedicated Moto CI job.
+
 ## 0.2.0
 
 - Adds the Python-native `lakeformation_guard.policy` authoring layer for

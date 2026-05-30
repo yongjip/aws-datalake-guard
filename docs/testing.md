@@ -1,0 +1,71 @@
+# Testing
+
+`lfguard` uses layered tests because Lake Formation behavior is split between
+pure policy logic, boto3 request shapes, emulator coverage, and real AWS
+service semantics.
+
+## Default Test Suite
+
+Run the default suite with the test extra:
+
+```bash
+python -m pip install -e ".[test]"
+python -m unittest discover -s tests
+```
+
+The default suite includes pure model, policy, planner, CLI, and botocore
+`Stubber` tests. Stubber validates that the adapter sends request parameters
+that match the Lake Formation botocore service model without contacting AWS.
+
+## Moto Emulator Tests
+
+Moto tests are optional and skipped unless Moto is installed:
+
+```bash
+python -m pip install -e ".[test,mock-aws]"
+python -m unittest tests.test_aws_adapter_moto
+```
+
+Use these as local smoke tests for simple round trips such as "apply a plan,
+reload current state, then audit is clean." Do not treat Moto as proof of Lake
+Formation semantics. Emulator coverage can lag or differ from AWS, especially
+for LF-Tag inheritance, column overrides, and invalid permission combinations.
+
+## Live AWS Contract Tests
+
+Live tests are disabled by default. Run them only in a sandbox account:
+
+```bash
+python -m pip install -e ".[test,aws]"
+LFGUARD_LIVE_AWS=1 \
+AWS_REGION=us-east-1 \
+python -m unittest tests.test_live_aws_contract
+```
+
+For the grant-validation test, also provide a disposable principal:
+
+```bash
+LFGUARD_LIVE_AWS=1 \
+LFGUARD_LIVE_AWS_TEST_PRINCIPAL_ARN=arn:aws:iam::111122223333:role/LfguardContractPrincipal \
+python -m unittest tests.test_live_aws_contract
+```
+
+Optional environment variables:
+
+| Variable | Purpose |
+| --- | --- |
+| `LFGUARD_LIVE_AWS` | Must be `1` to enable live tests. |
+| `LFGUARD_LIVE_AWS_PROFILE` | boto3 profile name. |
+| `AWS_REGION` / `AWS_DEFAULT_REGION` | AWS region for Glue and Lake Formation clients. |
+| `LFGUARD_LIVE_AWS_CATALOG_ID` | Data Catalog account ID; defaults to STS caller account. |
+| `LFGUARD_LIVE_AWS_TEST_PRINCIPAL_ARN` | Disposable role ARN used for grant validation. |
+
+Live tests cover only behavior local emulators cannot faithfully prove:
+
+- AWS accepts a table LF-Tag value and a column override for the same LF-Tag key.
+- AWS rejects a single LF-Tag table-policy grant combining partial-column
+  `SELECT` behavior with mutating permissions such as `INSERT`.
+- The adapter parses real Lake Formation response shapes for created LF-Tags.
+
+The tests create temporary LF-Tags and Glue Data Catalog metadata and attempt
+best-effort cleanup. Do not run them against production accounts.
