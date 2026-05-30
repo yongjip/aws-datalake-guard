@@ -17,8 +17,8 @@ jobs:
       matrix:
         python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install package
@@ -30,8 +30,8 @@ jobs:
     name: Build package
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Install build tools
@@ -63,7 +63,7 @@ jobs:
             --desired /tmp/lfguard-demo/desired.json \
             --current-snapshot /tmp/lfguard-demo/current-snapshot.json
           /tmp/lfguard-wheel-smoke/bin/python -c "from lakeformation_guard import DesiredState, CurrentState, LakePolicy, audit, plan, table_creator; print(DesiredState.__name__, CurrentState.__name__, LakePolicy.__name__, callable(audit), callable(plan), callable(table_creator))"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: lfguard-distributions
           path: dist/
@@ -73,8 +73,8 @@ jobs:
     name: Moto emulator tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Install package with Moto

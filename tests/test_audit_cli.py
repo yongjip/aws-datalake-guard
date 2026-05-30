@@ -777,7 +777,7 @@ class AuditCliTests(unittest.TestCase):
             self.assertIn("lfguard check", workflow)
             self.assertIn("--output-file artifacts/lfguard-check.md", workflow)
             self.assertIn("lfguard summary", workflow)
-            self.assertIn("actions/upload-artifact@v4", workflow)
+            self.assertIn("actions/upload-artifact@v6", workflow)
             self.assertIn("lfguard generate policy.py --output-file policy/desired.json --force", pre_commit)
             self.assertIn("lfguard check --desired policy/desired.json --fail-on-findings", pre_commit)
             self.assertIn("policy.py", pre_commit)
@@ -1197,7 +1197,7 @@ class AuditCliTests(unittest.TestCase):
             self.assertIn("--desired lfguard-demo/desired.json", workflow)
             self.assertIn("--current-snapshot lfguard-demo/current-snapshot.json", workflow)
             self.assertIn("--output-file artifacts/lfguard-check.md", workflow)
-            self.assertIn("actions/upload-artifact@v4", workflow)
+            self.assertIn("actions/upload-artifact@v6", workflow)
 
     def test_cli_sample_can_write_yaml_demo_files(self):
         with tempfile.TemporaryDirectory() as tmp:
